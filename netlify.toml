@@ -7,6 +7,11 @@
   # Overrides the "/study/" value committed in .env, which is meant for a
   # subpath deployment. Netlify serves this site from the domain root.
   VITE_BASE_PATH = "/"
+  # These are client-side config values that are meant to ship in the
+  # bundle (Firebase web config, Supabase anon key, reCAPTCHA site key
+  # are all designed to be public; access is enforced server-side).
+  # Netlify's secrets scanner otherwise flags them as leaked secrets.
+  SECRETS_SCAN_OMIT_KEYS = "VITE_FIREBASE_CONFIG,VITE_SUPABASE_ANON_KEY,VITE_RECAPTCHAV3TOKEN"
 
 [[redirects]]
   from = "/*"
