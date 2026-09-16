@@ -31,22 +31,27 @@ and Indicator 18 (Addiction). Level wording is verbatim from the instrument.
 
 ## Photographs
 
-The printed ASPIRE cards carry three photographs per indicator. Rights to that
-photography sit with Fundación Paraguaya and the ASPIRE program, so no photographs
-are committed here. Each card renders an empty photo slot with the correct square
-geometry instead.
+The six photographs in `assets/aspire/` are from the printed ASPIRE indicator
+cards, used here with the ASPIRE program and Fundación Paraguaya, who hold the
+rights to them. They are not sample imagery — do not swap in stock photos, and
+do not reuse them outside work with those partners.
 
-To add the real images, drop the files at the paths already configured in
-`config.json`:
+They are currently 470×470 crops taken from a PDF of the indicator cards rather
+than the originals. At the phone layout the photo column renders ~117px, so 470px
+covers it to 4x; on a wide desktop the column grows past 300px and they start to
+soften. Replacing them with the originals is a drop-in: same filenames, same
+paths, no code change.
 
 ```
 public/demo-webcam-survey/assets/aspire/violence-{green,yellow,red}.png
 public/demo-webcam-survey/assets/aspire/addiction-{green,yellow,red}.png
 ```
 
-They are picked up with no code change. Use square source crops — the photo column
-is `aspect-ratio: 1` with `object-fit: cover`, which is what keeps faces from being
-clipped.
+Keep the source crops square. The photo column is `aspect-ratio: 1` with
+`object-fit: cover`, which is what stops faces being clipped — an earlier
+portrait crop cut the tops of heads. If a file is missing or fails to load, the
+card falls back to an empty slot in the level's colour rather than a substitute
+image.
 
 ## Known gaps
 

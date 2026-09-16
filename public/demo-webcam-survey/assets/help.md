@@ -18,7 +18,6 @@ stop entirely by closing this window.
 
 ## Photographs
 
-The three photographs on each question are part of the printed ASPIRE indicator
-cards. Rights to that photography sit with Fundación Paraguaya and the ASPIRE
-program. Where a photograph is not available, the question shows an empty photo
-slot rather than a substitute image.
+The three photographs on each question are from the printed ASPIRE indicator
+cards, used with permission of the ASPIRE program and Fundación Paraguaya, who
+hold the rights to them.

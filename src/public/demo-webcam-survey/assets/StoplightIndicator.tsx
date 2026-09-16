@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box } from '@mantine/core';
 import { StimulusParams } from '../../../store/types';
 import { useCurrentComponent } from '../../../routes/utils';
+import { PREFIX } from '../../../utils/Prefix';
 import {
   AspireLevel, IndicatorParameters, LEVEL_STYLE, LevelColor, findLevel,
 } from './aspire';
@@ -10,6 +11,11 @@ import { SelfView } from './SelfView';
 function PhotoSlot({ level }: { level: AspireLevel }) {
   const [failed, setFailed] = useState(false);
   const style = LEVEL_STYLE[level.color];
+  // Config paths are relative to `public/`, so they need the deployment base
+  // prefix - the same resolution the built-in image component does.
+  const source = level.image && !level.image.startsWith('http')
+    ? `${PREFIX}${level.image}`
+    : level.image;
 
   return (
     <Box style={{
@@ -24,9 +30,9 @@ function PhotoSlot({ level }: { level: AspireLevel }) {
       justifyContent: 'center',
     }}
     >
-      {level.image && !failed ? (
+      {source && !failed ? (
         <img
-          src={level.image}
+          src={source}
           alt=""
           onError={() => setFailed(true)}
           // The source photos are square; keeping the column square and cover-fitting
@@ -36,9 +42,10 @@ function PhotoSlot({ level }: { level: AspireLevel }) {
           }}
         />
       ) : (
-        // Deliberate empty slot. The ASPIRE photographs are licensed to
-        // Fundacion Paraguaya / the ASPIRE program and are not bundled here;
-        // drop the originals at the configured path and they render with no code change.
+        // Fallback for a level whose photograph is missing or fails to load.
+        // An empty slot in the level's colour is better than a substitute image:
+        // the instrument is image-first, and a stock photo would change what is
+        // being asked.
         <Box
           aria-hidden
           style={{
