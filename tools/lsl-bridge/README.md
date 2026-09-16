@@ -58,6 +58,7 @@ and stopping the simulator. Nothing on the reVISit side changes.
 
 ```bash
 python3 tests/test_windowing.py      # segmentation rules, no LSL needed
+python3 tests/test_labrecorder.py    # RCS protocol, against a mock server
 python3 tests/test_end_to_end.py     # marker → LSL → HRF → window → browser
 ```
 
