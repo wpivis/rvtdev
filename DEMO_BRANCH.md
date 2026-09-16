@@ -70,11 +70,21 @@ exercise that tab, point `.env` at Firebase.
 
 ## Trying it
 
+Branch deploy: <https://claude-legal-doc-review--rvtdev.netlify.app/demo-document-review>
+
 - **Demo study**: `/demo-document-review`. The screen-recording permission step
   asks to share a tab and needs to hear your microphone before Next unlocks.
 - **Replay**: finish a session, then open the analysis view for the study and
   scrub a review trial. The document redraws as the participant left it at that
   instant.
+
+The `rvtdev` site sits behind Netlify's team access control: an unauthenticated
+request to any branch deploy answers `401` and redirects to
+`app.netlify.com/edge-access`. You need to be signed in to the Netlify team that
+owns the site to open any of these URLs, which also means an agent session cannot
+verify a deploy for you without credentials. A branch that has *not* been built
+answers `404` instead of `401`, which is a quick way to tell "not deployed yet"
+from "deployed, you're just not logged in".
 
 ## The planted problems
 
