@@ -5,6 +5,7 @@ import {
   Button,
   Center,
   ColorSwatch,
+  Drawer,
   Group, HoverCard, Popover, SegmentedControl, Select, Stack, Text,
   Tooltip,
 } from '@mantine/core';
@@ -16,7 +17,7 @@ import {
 import * as d3 from 'd3';
 
 import {
-  IconArrowLeft, IconArrowRight, IconDeviceDesktopDown, IconInfoCircle, IconMusicDown, IconPalette, IconPlayerPauseFilled, IconPlayerPlayFilled, IconRestore,
+  IconAdjustmentsHorizontal, IconArrowLeft, IconArrowRight, IconDeviceDesktopDown, IconInfoCircle, IconMusicDown, IconPalette, IconPlayerPauseFilled, IconPlayerPlayFilled, IconRestore,
 } from '@tabler/icons-react';
 import { useAsync } from '../../../store/hooks/useAsync';
 import { useAuth } from '../../../store/hooks/useAuth';
@@ -114,16 +115,13 @@ export function ThinkAloudFooter({
   // controls ran off the right edge, so below this breakpoint it becomes three
   // stacked rows and only the least-used strip scrolls sideways.
   const isNarrow = useMediaQuery('(max-width: 768px)') ?? false;
+  const [controlsOpened, setControlsOpened] = useState(false);
   const controlOffset = isNarrow ? 0 : 'lg';
-  const selectStyle = isNarrow
-    ? { flex: '1 1 45%', minWidth: 0 }
-    : { width: '200px' };
-  const participantSelectStyle = isNarrow ? { ...selectStyle, order: 1 } : selectStyle;
-  const taskSelectStyle = isNarrow ? { ...selectStyle, order: 2 } : selectStyle;
-  const tagStackStyle = (order: number) => (isNarrow
-    ? { flex: '1 1 45%', minWidth: 0, order }
-    : undefined);
-  const tagSelectorWidth = isNarrow ? 150 : 200;
+  // On a phone the selectors live in a bottom drawer, where they get the full
+  // width instead of competing for room in the bar.
+  const selectStyle = isNarrow ? { width: '100%' } : { width: '200px' };
+  const tagStackStyle = isNarrow ? { width: '100%' } : undefined;
+  const tagSelectorWidth = isNarrow ? 250 : 200;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -529,6 +527,184 @@ export function ThinkAloudFooter({
     </>
   );
 
+  const transportControls = (
+    <Group wrap="nowrap" gap={isNarrow ? 2 : undefined}>
+      <Text ff="monospace" style={{ textAlign: 'right' }} mt={controlOffset} c="dimmed">{timeString}</Text>
+
+      <Tooltip label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'}>
+        <ActionIcon aria-label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'} mt={isNarrow ? 0 : 25} size="lg" variant="light" onClick={() => { setIsPlaying(!isPlaying); }}>
+          {hasEnded ? <IconRestore /> : isPlaying ? <IconPlayerPauseFilled /> : <IconPlayerPlayFilled />}
+        </ActionIcon>
+      </Tooltip>
+
+      <Popover styles={{ dropdown: { padding: 0 } }} position="bottom" withArrow shadow="md">
+        <Popover.Target>
+          <Tooltip label="Speed">
+            <ActionIcon style={{ width: '50px' }} mt={isNarrow ? 0 : 25} variant="light">
+              {`${speed}x`}
+            </ActionIcon>
+          </Tooltip>
+        </Popover.Target>
+        <Popover.Dropdown>
+          <SegmentedControl
+            value={speed.toString()}
+            onChange={(s) => {
+              setSpeed(+s);
+              syncChannel.postMessage({
+                key: 'currentSpeed',
+                value: s,
+              });
+            }}
+            orientation="vertical"
+            data={[
+              { label: '0.5x', value: '0.5' },
+              { label: '1x', value: '1' },
+              { label: '1.5x', value: '1.5' },
+              { label: '2x', value: '2' },
+              { label: '4x', value: '4' },
+              { label: '8x', value: '8' },
+            ]}
+          />
+          <Stack gap="xs" />
+        </Popover.Dropdown>
+      </Popover>
+
+    </Group>
+  );
+
+  const participantSelect = (
+    <Select
+      leftSection={(
+        <Tooltip label="Previous Participant">
+          <ActionIcon size="sm" variant="light" onClick={() => nextParticipantCallback(-1)}>
+            <IconArrowLeft />
+          </ActionIcon>
+        </Tooltip>
+              )}
+      rightSection={(
+        <Tooltip label="Next Participant">
+          <ActionIcon size="sm" variant="light" onClick={() => nextParticipantCallback(1)} style={{ pointerEvents: 'all' }}>
+            <IconArrowRight />
+          </ActionIcon>
+        </Tooltip>
+              )}
+      label="Participant Id"
+      style={selectStyle}
+      value={participantId}
+      onChange={(e: string | null) => {
+        setSearchParams((params) => {
+          params.set('participantId', e || '');
+          return params;
+        });
+        syncChannel.postMessage({
+          key: 'participantId',
+          value: e || '',
+        });
+      }}
+      data={visibleParticipants.map((part) => part).sort()}
+      searchable
+    />
+  );
+
+  const participantTagsBlock = (
+    <Stack gap="4" style={tagStackStyle}>
+      <Group gap="xs" align="center">
+        <Text size="sm" fw={500}>Participant Tags</Text>
+        <Tooltip w={300} multiline label="Participant tags allow you to categorize or label the participant. Click in the box to add, create, or edit tags.">
+          <IconInfoCircle size={16} />
+        </Tooltip>
+      </Group>
+      <TagSelector
+        width={tagSelectorWidth}
+        tags={allParticipantTags || []}
+        editTagCallback={editParticipantTagCallback}
+        createTagCallback={createParticipantTagCallback}
+        tagsEmptyText="Add Participant Tags"
+        onSelectTags={(tempTags) => {
+          if (storageEngine && participantTags) {
+            let copy = structuredClone(participantTags);
+            if (copy) {
+              copy.participantTags = tempTags;
+            } else {
+              copy = { participantTags: [], taskTags: {} };
+              copy.participantTags = tempTags;
+            }
+            setLocalParticipantTags(copy);
+            storageEngine.saveAllParticipantAndTaskTags(auth.user.user?.email || 'temp', participantId, copy).then(() => {
+              pullParticipantTags(auth.user.user?.email || 'temp', participantId, studyId, storageEngine);
+            });
+          }
+        }}
+        selectedTags={localParticipantTags ? localParticipantTags.participantTags : []}
+      />
+    </Stack>
+  );
+
+  const taskSelect = (
+    <Select
+      leftSection={(
+        <Tooltip label="Previous Task">
+          <ActionIcon size="sm" variant="light" onClick={() => nextTaskCallback(-1)}>
+            <IconArrowLeft />
+          </ActionIcon>
+        </Tooltip>
+              )}
+      rightSection={(
+        <Tooltip label="Next Task">
+          <ActionIcon size="sm" variant="light" onClick={() => nextTaskCallback(1)} style={{ pointerEvents: 'all' }}>
+            <IconArrowRight />
+          </ActionIcon>
+        </Tooltip>
+              )}
+      label="Task"
+      style={selectStyle}
+      value={currentTrial}
+              // this needs to be in a helper or two which we dont currently have
+      onChange={(e: string | null) => {
+        if (e) {
+          navigateToTask(e);
+        }
+      }}
+      data={tasksList}
+      searchable
+    />
+  );
+
+  const taskTagsBlock = (
+    <Stack gap="4" style={tagStackStyle}>
+      <Group gap="xs" align="center">
+        <Text size="sm" fw={500}>Task Tags</Text>
+        <Tooltip w={300} multiline label="Task tags allow you to categorize or label the current task. Click in the box to add, create, or edit tags.">
+          <IconInfoCircle size={16} />
+        </Tooltip>
+      </Group>
+      <TagSelector
+        width={tagSelectorWidth}
+        tags={taskTags || []}
+        editTagCallback={editTaskTagCallback}
+        createTagCallback={createTaskTagCallback}
+        tagsEmptyText="Add Task Tags"
+        onSelectTags={(tempTag) => {
+          if (storageEngine && participantTags) {
+            let copy = structuredClone(participantTags);
+            if (copy) {
+              copy.taskTags[currentTrial] = tempTag;
+            } else {
+              copy = { participantTags: [], taskTags: {} };
+              copy.taskTags[currentTrial] = tempTag;
+            }
+            setLocalParticipantTags(copy);
+
+            storageEngine.saveAllParticipantAndTaskTags(auth.user.user?.email || 'temp', participantId, copy).then(() => {
+              pullParticipantTags(auth.user.user?.email || 'temp', participantId, studyId, storageEngine);
+            });
+          }
+        }}
+        selectedTags={localParticipantTags ? localParticipantTags.taskTags[currentTrial] || [] : []}
+      />
+    </Stack>
+  );
+
   return (
     <AppShell.Footer zIndex={101} withBorder={false}>
       {currentTrial && participant && currentTrialClean === '' && (
@@ -564,200 +740,68 @@ export function ThinkAloudFooter({
         {xScale && transcriptLines ? <TranscriptSegmentsVis startTime={xScale.domain()[0]} xScale={xScale} transcriptLines={transcriptLines} currentShownTranscription={currentShownTranscription || 0} /> : null}
 
         <Group
-          gap="xs"
+          gap={isNarrow ? 2 : 'xs'}
           style={{ width: '100%' }}
           justify="center"
-          wrap={isNarrow ? 'wrap' : 'nowrap'}
+          wrap="nowrap"
           mb={isReplay ? 0 : 'md'}
-          px={isNarrow ? 'xs' : 0}
+          px={isNarrow ? 6 : 0}
         >
-          <Group wrap="nowrap" style={isNarrow ? { width: '100%' } : undefined} justify={isNarrow ? 'center' : undefined}>
-            <Text ff="monospace" style={{ textAlign: 'right' }} mt={controlOffset} c="dimmed">{timeString}</Text>
-
-            <Tooltip label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'}>
-              <ActionIcon aria-label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'} mt={isNarrow ? 0 : 25} size="lg" variant="light" onClick={() => { setIsPlaying(!isPlaying); }}>
-                {hasEnded ? <IconRestore /> : isPlaying ? <IconPlayerPauseFilled /> : <IconPlayerPlayFilled />}
-              </ActionIcon>
-            </Tooltip>
-
-            <Popover styles={{ dropdown: { padding: 0 } }} position="bottom" withArrow shadow="md">
-              <Popover.Target>
-                <Tooltip label="Speed">
-                  <ActionIcon style={{ width: '50px' }} mt={isNarrow ? 0 : 25} variant="light">
-                    {`${speed}x`}
-                  </ActionIcon>
-                </Tooltip>
-              </Popover.Target>
-              <Popover.Dropdown>
-                <SegmentedControl
-                  value={speed.toString()}
-                  onChange={(s) => {
-                    setSpeed(+s);
-                    syncChannel.postMessage({
-                      key: 'currentSpeed',
-                      value: s,
-                    });
-                  }}
-                  orientation="vertical"
-                  data={[
-                    { label: '0.5x', value: '0.5' },
-                    { label: '1x', value: '1' },
-                    { label: '1.5x', value: '1.5' },
-                    { label: '2x', value: '2' },
-                    { label: '4x', value: '4' },
-                    { label: '8x', value: '8' },
-                  ]}
-                />
-                <Stack gap="xs" />
-              </Popover.Dropdown>
-            </Popover>
-
-          </Group>
-
-          <Group
-            wrap={isNarrow ? 'wrap' : 'nowrap'}
-            gap={isNarrow ? 'xs' : 'lg'}
-            style={isNarrow ? { width: '100%' } : undefined}
-          >
-
-            <Select
-              leftSection={(
-                <Tooltip label="Previous Participant">
-                  <ActionIcon size="sm" variant="light" onClick={() => nextParticipantCallback(-1)}>
-                    <IconArrowLeft />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              rightSection={(
-                <Tooltip label="Next Participant">
-                  <ActionIcon size="sm" variant="light" onClick={() => nextParticipantCallback(1)} style={{ pointerEvents: 'all' }}>
-                    <IconArrowRight />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              label="Participant Id"
-              style={participantSelectStyle}
-              value={participantId}
-              onChange={(e: string | null) => {
-                setSearchParams((params) => {
-                  params.set('participantId', e || '');
-                  return params;
-                });
-                syncChannel.postMessage({
-                  key: 'participantId',
-                  value: e || '',
-                });
-              }}
-              data={visibleParticipants.map((part) => part).sort()}
-              searchable
-            />
-
-            <Stack gap="4" style={tagStackStyle(3)}>
-              <Group gap="xs" align="center">
-                <Text size="sm" fw={500}>Participant Tags</Text>
-                <Tooltip w={300} multiline label="Participant tags allow you to categorize or label the participant. Click in the box to add, create, or edit tags.">
-                  <IconInfoCircle size={16} />
-                </Tooltip>
-              </Group>
-              <TagSelector
-                width={tagSelectorWidth}
-                tags={allParticipantTags || []}
-                editTagCallback={editParticipantTagCallback}
-                createTagCallback={createParticipantTagCallback}
-                tagsEmptyText="Add Participant Tags"
-                onSelectTags={(tempTags) => {
-                  if (storageEngine && participantTags) {
-                    let copy = structuredClone(participantTags);
-                    if (copy) {
-                      copy.participantTags = tempTags;
-                    } else {
-                      copy = { participantTags: [], taskTags: {} };
-                      copy.participantTags = tempTags;
-                    }
-                    setLocalParticipantTags(copy);
-                    storageEngine.saveAllParticipantAndTaskTags(auth.user.user?.email || 'temp', participantId, copy).then(() => {
-                      pullParticipantTags(auth.user.user?.email || 'temp', participantId, studyId, storageEngine);
-                    });
-                  }
-                }}
-                selectedTags={localParticipantTags ? localParticipantTags.participantTags : []}
-              />
-            </Stack>
-
-            <Select
-              leftSection={(
-                <Tooltip label="Previous Task">
-                  <ActionIcon size="sm" variant="light" onClick={() => nextTaskCallback(-1)}>
-                    <IconArrowLeft />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              rightSection={(
-                <Tooltip label="Next Task">
-                  <ActionIcon size="sm" variant="light" onClick={() => nextTaskCallback(1)} style={{ pointerEvents: 'all' }}>
-                    <IconArrowRight />
-                  </ActionIcon>
-                </Tooltip>
-              )}
-              label="Task"
-              style={taskSelectStyle}
-              value={currentTrial}
-              // this needs to be in a helper or two which we dont currently have
-              onChange={(e: string | null) => {
-                if (e) {
-                  navigateToTask(e);
-                }
-              }}
-              data={tasksList}
-              searchable
-            />
-            <Stack gap="4" style={tagStackStyle(4)}>
-              <Group gap="xs" align="center">
-                <Text size="sm" fw={500}>Task Tags</Text>
-                <Tooltip w={300} multiline label="Task tags allow you to categorize or label the current task. Click in the box to add, create, or edit tags.">
-                  <IconInfoCircle size={16} />
-                </Tooltip>
-              </Group>
-              <TagSelector
-                width={tagSelectorWidth}
-                tags={taskTags || []}
-                editTagCallback={editTaskTagCallback}
-                createTagCallback={createTaskTagCallback}
-                tagsEmptyText="Add Task Tags"
-                onSelectTags={(tempTag) => {
-                  if (storageEngine && participantTags) {
-                    let copy = structuredClone(participantTags);
-                    if (copy) {
-                      copy.taskTags[currentTrial] = tempTag;
-                    } else {
-                      copy = { participantTags: [], taskTags: {} };
-                      copy.taskTags[currentTrial] = tempTag;
-                    }
-                    setLocalParticipantTags(copy);
-
-                    storageEngine.saveAllParticipantAndTaskTags(auth.user.user?.email || 'temp', participantId, copy).then(() => {
-                      pullParticipantTags(auth.user.user?.email || 'temp', participantId, studyId, storageEngine);
-                    });
-                  }
-                }}
-                selectedTags={localParticipantTags ? localParticipantTags.taskTags[currentTrial] || [] : []}
-              />
-            </Stack>
-          </Group>
           {isNarrow ? (
-            <Group
-              gap="xs"
-              wrap="nowrap"
-              justify="center"
-              style={{
-                order: 5, width: '100%', overflowX: 'auto', paddingBottom: 2,
-              }}
-            >
+            <>
+              {transportControls}
+              <Tooltip label="Previous task">
+                <ActionIcon aria-label="Previous task" size="lg" variant="subtle" onClick={() => nextTaskCallback(-1)}>
+                  <IconArrowLeft />
+                </ActionIcon>
+              </Tooltip>
+              <Text size="xs" c="dimmed" style={{ flex: 1, minWidth: 0 }} truncate="end">{currentTrial}</Text>
+              <Tooltip label="Next task">
+                <ActionIcon aria-label="Next task" size="lg" variant="subtle" onClick={() => nextTaskCallback(1)}>
+                  <IconArrowRight />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Replay controls">
+                <ActionIcon aria-label="Replay controls" size="lg" variant="light" onClick={() => setControlsOpened(true)}>
+                  <IconAdjustmentsHorizontal />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              {transportControls}
+
+              <Group wrap="nowrap" gap="lg">
+                {participantSelect}
+                {participantTagsBlock}
+                {taskSelect}
+                {taskTagsBlock}
+              </Group>
               {trailingControls}
-            </Group>
-          ) : trailingControls}
+            </>
+          )}
         </Group>
       </Stack>
+      <Drawer
+        opened={isNarrow && controlsOpened}
+        onClose={() => setControlsOpened(false)}
+        position="bottom"
+        size={420}
+        title="Replay controls"
+        // Above the floating webcam overlay (z-index 1000), which otherwise
+        // sits on top of the participant selector.
+        zIndex={2000}
+      >
+        <Stack gap="md" pb="md">
+          {participantSelect}
+          {participantTagsBlock}
+          {taskSelect}
+          {taskTagsBlock}
+          <Group gap="xs" wrap="wrap">
+            {trailingControls}
+          </Group>
+        </Stack>
+      </Drawer>
     </AppShell.Footer>
   );
 }

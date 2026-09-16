@@ -7,7 +7,7 @@ import {
 import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
-import { useResizeObserver, useThrottledCallback } from '@mantine/hooks';
+import { useMediaQuery, useResizeObserver, useThrottledCallback } from '@mantine/hooks';
 import { WaveForm, WaveSurfer } from 'wavesurfer-react';
 import * as d3 from 'd3';
 import {
@@ -385,6 +385,12 @@ export function AudioProvenanceVis({
     return scale;
   }, [answers, taskName, duration, width]);
 
+  // The waveform and provenance track are the tallest things in the replay
+  // footer. On a phone they shrink so the footer stays a compact bar.
+  const isNarrow = useMediaQuery('(max-width: 768px)') ?? false;
+  const waveHeight = isNarrow ? 28 : 50;
+  const provenanceHeight = isNarrow ? 16 : 25;
+
   return (
     <Group wrap="nowrap" gap={0} mx={0}>
       <Stack ref={ref} style={{ width: '100%' }} gap={0}>
@@ -401,8 +407,8 @@ export function AudioProvenanceVis({
                 display={analysisHasAudio ? 'block' : 'none'}
                 id="waveformDiv"
               >
-                <WaveSurfer backend="MediaElement" onMount={handleWSMount} plugins={[]} container="#waveformDiv" height={50} waveColor="#484848" progressColor="cornflowerblue" barHeight={0} cursorColor="rgba(0, 0, 0, 0)">
-                  <WaveForm id="waveform" height={50} />
+                <WaveSurfer backend="MediaElement" onMount={handleWSMount} plugins={[]} container="#waveformDiv" height={waveHeight} waveColor="#484848" progressColor="cornflowerblue" barHeight={0} cursorColor="rgba(0, 0, 0, 0)">
+                  <WaveForm id="waveform" height={waveHeight} />
                 </WaveSurfer>
               </Box>
             </Box>
@@ -416,14 +422,14 @@ export function AudioProvenanceVis({
               currentNode={currentGlobalNode?.name || ''}
               provenanceGraph={provenanceGraph}
               width={waveSurferWidth || (width - margin.left - margin.right)}
-              height={25}
+              height={provenanceHeight}
               margin={margin}
               startTime={answers[taskName]?.startTime}
             />
           ) : null}
 
         {xScale ? (
-          <Timer height={(analysisHasAudio ? 49 : 0) + 25} width={width} xScale={xScale} debounceUpdateTimer={_setPlayTime} />
+          <Timer height={(analysisHasAudio ? waveHeight - 1 : 0) + provenanceHeight} width={width} xScale={xScale} debounceUpdateTimer={_setPlayTime} />
         ) : null}
       </Stack>
     </Group>

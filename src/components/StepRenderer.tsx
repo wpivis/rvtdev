@@ -182,8 +182,8 @@ export function StepRenderer() {
   );
 
   const [hasAudio, setHasAudio] = useState<boolean>();
-  // The analysis footer stacks into three rows below this breakpoint, so it
-  // needs more height than the single-row desktop toolbar.
+  // Below this breakpoint the analysis footer is a compact single bar with its
+  // selectors in a drawer, and the timeline above it shrinks to match.
   const isNarrowViewport = useMediaQuery('(max-width: 768px)') ?? false;
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const exportInProgressRef = useRef(false);
@@ -279,7 +279,7 @@ export function StepRenderer() {
             padding="md"
             header={{ height: showTitleBar ? 70 : 0 }}
             aside={{ width: STUDY_BROWSER_WIDTH, breakpoint: 'xs', collapsed: { desktop: !asideOpen, mobile: !asideOpen } }}
-            footer={{ height: isAnalysis ? (isNarrowViewport ? 275 : 125) + (hasAudio ? 55 : 0) : 0 }}
+            footer={{ height: isAnalysis ? (isNarrowViewport ? 62 : 125) + (hasAudio ? (isNarrowViewport ? 32 : 55) : 0) : 0 }}
             style={{ '--app-shell-aside-offset': '0rem' } as CSSProperties}
           >
             {asideOpen && <AppAside />}

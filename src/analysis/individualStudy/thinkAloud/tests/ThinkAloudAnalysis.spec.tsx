@@ -101,6 +101,9 @@ vi.mock('@mantine/core', () => ({
   Box: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   Button: ({ children, onClick }: { children: ReactNode; onClick?: () => void }) => <button type="button" onClick={onClick}>{children}</button>,
   Center: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  // Mirrors the real Drawer: contents only exist in the tree once opened. These
+  // tests run the desktop layout, where the drawer stays closed.
+  Drawer: ({ children, opened }: { children: ReactNode; opened?: boolean }) => (opened ? <div role="dialog">{children}</div> : null),
   CheckIcon: () => <span>check</span>,
   ColorPicker: ({ value }: { value?: string }) => <div data-colorpicker={value} />,
   ColorSwatch: ({ color }: { color: string }) => <div data-color={color} />,

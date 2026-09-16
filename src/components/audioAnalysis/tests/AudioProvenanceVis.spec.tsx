@@ -35,6 +35,8 @@ vi.mock('@mantine/core', () => ({
 vi.mock('@mantine/hooks', () => ({
   useResizeObserver: () => [{ current: null }, { width: 500 }],
   useThrottledCallback: (fn: (...args: unknown[]) => unknown) => fn,
+  // These tests assert the desktop timeline heights.
+  useMediaQuery: () => false,
 }));
 
 vi.mock('react-router', () => ({
