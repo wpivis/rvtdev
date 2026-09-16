@@ -11,6 +11,7 @@
     "demo-svelte-trrack",
     "demo-react-trrack",
     "demo-screen-recording",
+    "demo-fnirs-lsl",
     "demo-image",
     "demo-vega",
     "demo-video",
@@ -256,6 +257,9 @@
     "example-VLAT-adaptive": {
       "path": "example-VLAT-adaptive/config.json",
       "test": true
+    },
+    "demo-fnirs-lsl": {
+      "path": "demo-fnirs-lsl/config.json"
     }
   }
 }

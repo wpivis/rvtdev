@@ -249,6 +249,37 @@ export type Styles = {
  * ```
  * In the above, the `<study-name>/assets/` path is referring to the path to your individual study assets. It is common practice to have your study directory contain an `assets` directory where all components and images relevant to your study reside. Note that this path is relative to the `public` folder of the repository - as is all other paths you define in reVISit (aside from React components whose paths are relative to `src/public`.)
  */
+/**
+ * The LslBridgeConfig object configures the connection to a local Lab Streaming Layer (LSL) bridge. LSL is the standard protocol for streaming data from research hardware such as fNIRS, EEG, eye trackers and GSR sensors.
+ *
+ * Browsers cannot speak LSL directly, so a small helper process runs on the participant's machine (see `tools/lsl-bridge` in the reVISit repository). reVISit connects to it over a local WebSocket, publishes trial start and stop events onto the LSL network as markers, and receives a per-task trace back for the analysis view.
+ *
+ * This requires software running on the participant machine, so it is only suitable for in-lab, supervised studies.
+ *
+ * ```json
+ * "lslBridge": {
+ *   "enabled": true,
+ *   "sensorType": "NIRS",
+ *   "leadIn": 5,
+ *   "leadOut": 15
+ * }
+ * ```
+ */
+export interface LslBridgeConfig {
+  /** Whether the LSL bridge is enabled for this study. Defaults to false. */
+  enabled: boolean;
+  /** The host the bridge is listening on. Defaults to 127.0.0.1. The bridge must be on the loopback interface: browsers treat loopback as a trustworthy target, which is what allows an https study page to open an insecure-scheme WebSocket to it. */
+  host?: string;
+  /** The port the bridge is listening on. Defaults to 8765. */
+  port?: number;
+  /** The LSL stream type to attach to, for example "NIRS" for fNIRS or "EEG". Defaults to NIRS. */
+  sensorType?: string;
+  /** Seconds of signal to include before each task onset in the per-task window. Defaults to 5. */
+  leadIn?: number;
+  /** Seconds of signal to include after each task ends. Defaults to 15. Haemodynamic responses peak around 5 seconds after onset and wash out over roughly 20, so a window clipped at the task boundary would attribute the tail of one task's response to the next. Leave a rest period of at least this length between tasks in the sequence so consecutive windows do not overlap. */
+  leadOut?: number;
+}
+
 export interface UIConfig {
   // Required fields
   /** The path to the logo image. This is displayed on the landing page and the header. */
@@ -301,6 +332,8 @@ export interface UIConfig {
   recordScreen?: boolean;
   /** Desired fps for recording screen. If possible, this value will be used, but if it's not possible, the user agent will use the closest possible match. */
   recordScreenFPS?: number;
+  /** Configuration for streaming sensor data through a local Lab Streaming Layer bridge. Only suitable for in-lab studies, since it requires a helper process on the participant machine. */
+  lslBridge?: LslBridgeConfig;
   /** Whether to prepend questions with their index (+ 1). This should only be used when all questions are in the same location, e.g. all are in the side bar. */
   enumerateQuestions?: boolean;
   /** Whether to show the response dividers. Defaults to false. */

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "fNIRS via Lab Streaming Layer",
+    "version": "pilot",
+    "authors": [
+      "The reVISit Team"
+    ],
+    "date": "2026-09-16",
+    "description": "Streams trial boundaries onto the LSL network and shows the per-task fNIRS trace that comes back. Requires the bridge in tools/lsl-bridge to be running on the participant machine.",
+    "organizations": [
+      "WPI"
+    ]
+  },
+  "uiConfig": {
+    "contactEmail": "contact@revisit.dev",
+    "logoPath": "revisitAssets/revisitLogoSquare.svg",
+    "withProgressBar": true,
+    "autoDownloadStudy": false,
+    "withSidebar": false,
+    "lslBridge": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8765,
+      "sensorType": "NIRS",
+      "leadIn": 5,
+      "leadOut": 15
+    }
+  },
+  "components": {
+    "introduction": {
+      "type": "markdown",
+      "path": "demo-fnirs-lsl/assets/introduction.md",
+      "response": []
+    },
+    "restBaseline": {
+      "type": "markdown",
+      "path": "demo-fnirs-lsl/assets/rest.md",
+      "response": []
+    },
+    "barChartTask": {
+      "type": "markdown",
+      "path": "demo-fnirs-lsl/assets/task-bar.md",
+      "response": [
+        {
+          "id": "barEstimate",
+          "prompt": "Which bar is tallest?",
+          "location": "belowStimulus",
+          "type": "radio",
+          "options": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      ]
+    },
+    "scatterTask": {
+      "type": "markdown",
+      "path": "demo-fnirs-lsl/assets/task-scatter.md",
+      "response": [
+        {
+          "id": "scatterTrend",
+          "prompt": "Is the trend positive or negative?",
+          "location": "belowStimulus",
+          "type": "radio",
+          "options": [
+            "Positive",
+            "Negative"
+          ]
+        }
+      ]
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": [
+      "introduction",
+      "restBaseline",
+      "barChartTask",
+      "scatterTask"
+    ]
+  }
+}
