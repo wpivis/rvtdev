@@ -11,6 +11,7 @@
     "demo-svelte-trrack",
     "demo-react-trrack",
     "demo-screen-recording",
+    "demo-document-review",
     "demo-image",
     "demo-vega",
     "demo-video",
@@ -49,6 +50,7 @@
     "library-virtual-chinrest",
     "library-vlat",
     "test-audio",
+    "test-document-review",
     "test-device-restriction",
     "test-library",
     "test-likert-matrix",
@@ -70,6 +72,9 @@
     },
     "demo-screen-recording": {
       "path": "demo-screen-recording/config.json"
+    },
+    "demo-document-review": {
+      "path": "demo-document-review/config.json"
     },
     "demo-html-input": {
       "path": "demo-html-input/config.json"
@@ -209,6 +214,10 @@
     },
     "test-audio": {
       "path": "test-audio/config.json",
+      "test": true
+    },
+    "test-document-review": {
+      "path": "test-document-review/config.json",
       "test": true
     },
     "test-device-restriction": {

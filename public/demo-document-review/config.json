@@ -1,0 +1,199 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "Contract Review: Expertise and Reading Behaviour",
+    "version": "pilot",
+    "authors": [
+      "WPI VIS"
+    ],
+    "date": "2026-09-16",
+    "description": "Participants review two fabricated contracts while thinking aloud. Scrolling, dwelling, searching, selecting and flagging are recorded as provenance so a whole review can be replayed in the analysis view.",
+    "organizations": [
+      "WPI"
+    ]
+  },
+  "uiConfig": {
+    "contactEmail": "contact@revisit.dev",
+    "helpTextPath": "demo-document-review/assets/introduction.md",
+    "logoPath": "revisitAssets/revisitLogoSquare.svg",
+    "withProgressBar": true,
+    "autoDownloadStudy": false,
+    "withSidebar": true,
+    "sidebarWidth": 360,
+    "windowEventDebounceTime": 200,
+    "recordAudio": true,
+    "recordScreen": true,
+    "recordScreenFPS": 15
+  },
+  "importedLibraries": [
+    "screen-recording"
+  ],
+  "baseComponents": {
+    "documentReview": {
+      "type": "react-component",
+      "path": "demo-document-review/assets/DocumentReviewTask.tsx",
+      "nextButtonLocation": "sidebar",
+      "instructionLocation": "sidebar",
+      "recordAudio": true,
+      "recordScreen": true,
+      "response": [
+        {
+          "id": "flaggedClauses",
+          "prompt": "Clauses you flagged",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "clauseNotes",
+          "prompt": "Your notes",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "riskRating",
+          "prompt": "Overall, how risky is this document for our client?",
+          "location": "sidebar",
+          "type": "radio",
+          "options": [
+            "Low risk — sign as drafted",
+            "Moderate risk — sign with minor edits",
+            "High risk — needs negotiation",
+            "Do not sign"
+          ]
+        },
+        {
+          "id": "recommendation",
+          "prompt": "In one or two sentences, what would you tell the client?",
+          "location": "sidebar",
+          "type": "longText",
+          "placeholder": "Your recommendation"
+        }
+      ]
+    }
+  },
+  "components": {
+    "introduction": {
+      "type": "markdown",
+      "path": "demo-document-review/assets/introduction.md",
+      "recordAudio": false,
+      "recordScreen": false,
+      "response": []
+    },
+    "background": {
+      "type": "questionnaire",
+      "instruction": "Before we begin, a few questions about your background.",
+      "instructionLocation": "aboveStimulus",
+      "recordAudio": false,
+      "recordScreen": false,
+      "response": [
+        {
+          "id": "legalTraining",
+          "prompt": "Which best describes your legal training?",
+          "location": "belowStimulus",
+          "type": "radio",
+          "options": [
+            "Practicing attorney",
+            "Attorney, not currently practicing",
+            "Law student",
+            "Paralegal or contracts professional, not an attorney",
+            "No formal legal training"
+          ]
+        },
+        {
+          "id": "yearsExperience",
+          "prompt": "How many years have you spent reviewing contracts professionally? Enter 0 if none.",
+          "location": "belowStimulus",
+          "type": "numerical",
+          "min": 0,
+          "max": 60
+        },
+        {
+          "id": "reviewFrequency",
+          "prompt": "How often do you read a contract closely?",
+          "location": "belowStimulus",
+          "type": "radio",
+          "options": [
+            "Most days",
+            "A few times a month",
+            "A few times a year",
+            "Rarely or never"
+          ]
+        }
+      ]
+    },
+    "review-nda": {
+      "baseComponent": "documentReview",
+      "description": "Review of a mutual NDA sent on the counterparty's paper.",
+      "instruction": "Read this NDA as though you were advising Northvale. **Please think aloud as you read** — say what you are looking for and what gives you pause. Flag any clause that concerns you, and add a short note explaining why.",
+      "meta": {
+        "documentType": "nda",
+        "clauseCount": 12,
+        "trialIndex": 1
+      },
+      "parameters": {
+        "documentId": "mutual-nda",
+        "dwellMs": 600,
+        "paneHeight": 520
+      }
+    },
+    "review-msa": {
+      "baseComponent": "documentReview",
+      "description": "Review of a vendor-form SaaS master services agreement.",
+      "instruction": "Now review this vendor agreement, again advising Northvale. **Keep thinking aloud.** Flag any clause that concerns you, and add a short note explaining why.",
+      "meta": {
+        "documentType": "msa",
+        "clauseCount": 14,
+        "trialIndex": 2
+      },
+      "parameters": {
+        "documentId": "saas-msa",
+        "dwellMs": 600,
+        "paneHeight": 520
+      }
+    },
+    "debrief": {
+      "type": "questionnaire",
+      "instruction": "Thank you. A few closing questions.",
+      "instructionLocation": "aboveStimulus",
+      "recordAudio": false,
+      "recordScreen": false,
+      "response": [
+        {
+          "id": "strategy",
+          "prompt": "How did you decide where to focus your attention in each document?",
+          "location": "belowStimulus",
+          "type": "longText",
+          "placeholder": "Your answer"
+        },
+        {
+          "id": "realism",
+          "prompt": "How realistic did these documents feel?",
+          "location": "belowStimulus",
+          "type": "likert",
+          "numItems": 5,
+          "leftLabel": "Not at all realistic",
+          "rightLabel": "Very realistic"
+        },
+        {
+          "id": "thinkAloudBurden",
+          "prompt": "Did thinking aloud change how you read?",
+          "required": false,
+          "location": "belowStimulus",
+          "type": "longText",
+          "placeholder": "Optional"
+        }
+      ]
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": [
+      "introduction",
+      "$screen-recording.components.screenRecordingPermission",
+      "background",
+      "review-nda",
+      "review-msa",
+      "debrief"
+    ]
+  }
+}

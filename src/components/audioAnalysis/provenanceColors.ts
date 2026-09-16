@@ -1,5 +1,6 @@
 /* eslint-disable no-bitwise */
 import { TrrackedProvenance } from '../../store/types';
+import { DOCUMENT_REVIEW_ACTION_COLORS } from '../../utils/documentReviewActions';
 
 export const PROVENANCE_COLOR_PALETTE = ['#4269d0', '#ff725c', '#6cc5b0', '#3ca951', '#ff8ab7', '#a463f2', '#97bbf5', '#9c6b4e'];
 export const ROOT_COLOR = '#efb118';
@@ -75,6 +76,20 @@ function isFormUpdateKey(key: string): boolean {
   return key === FORM_UPDATE_KEY || key === normalizeKeyText('Update form field');
 }
 
+/**
+ * Colors for action types whose color carries meaning, rather than just needing to
+ * be distinguishable from its neighbours. Keys are normalized action names.
+ *
+ * Document-review actions are the current entries: an analyst scrubbing a review
+ * session is looking for the moments a clause was flagged, so those nodes are the
+ * only red ones and the ambient reading behaviour stays muted. Studies with their
+ * own meaningful palette can add entries here.
+ */
+export const EXPLICIT_KEY_COLORS = new Map<string, string>(
+  Object.entries(DOCUMENT_REVIEW_ACTION_COLORS)
+    .map(([action, color]) => [normalizeKeyText(action), color]),
+);
+
 export function getColorForKey(key: string): string {
   if (key === ROOT_KEY) {
     return ROOT_COLOR;
@@ -85,6 +100,11 @@ export function getColorForKey(key: string): string {
 
   if (isFormUpdateKey(key)) {
     return FORM_UPDATE_COLOR;
+  }
+
+  const explicitColor = EXPLICIT_KEY_COLORS.get(key);
+  if (explicitColor) {
+    return explicitColor;
   }
 
   // Use deterministic HSL from a 32-bit hash to greatly reduce collisions

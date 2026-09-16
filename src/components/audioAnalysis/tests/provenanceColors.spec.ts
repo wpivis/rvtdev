@@ -9,6 +9,7 @@ import {
   getNodeColorKey,
   normalizeActionName,
 } from '../provenanceColors';
+import { DOCUMENT_REVIEW_ACTIONS, DOCUMENT_REVIEW_ACTION_COLORS } from '../../../utils/documentReviewActions';
 
 function createGraph(nodes: TrrackedProvenance['nodes'], root: string): TrrackedProvenance {
   return {
@@ -148,5 +149,52 @@ describe('provenanceColors', () => {
     const legendEntries = buildProvenanceLegendEntries([graphA, graphB]);
     expect(legendEntries.size).toBe(2);
     expect(legendEntries.get('signal setzoom')?.color).toBe(getColorForKey('signal setzoom'));
+  });
+});
+
+describe('explicit action colors', () => {
+  test('every document-review action gets its declared color', () => {
+    Object.entries(DOCUMENT_REVIEW_ACTION_COLORS).forEach(([action, color]) => {
+      expect(getColorForKey(normalizeActionName(action))).toBe(color);
+    });
+  });
+
+  test('flagging a clause is the only red, so it stands out on the replay timeline', () => {
+    const flagColor = getColorForKey(normalizeActionName(DOCUMENT_REVIEW_ACTIONS.flag));
+    const ambient = [DOCUMENT_REVIEW_ACTIONS.scroll, DOCUMENT_REVIEW_ACTIONS.dwell, DOCUMENT_REVIEW_ACTIONS.select]
+      .map((action) => getColorForKey(normalizeActionName(action)));
+    expect(ambient).not.toContain(flagColor);
+  });
+
+  test('a node recorded the way Trrack actually records one gets the explicit color', () => {
+    // A registered state action lands in `event`; `sideEffects.do` stays empty.
+    // This is the shape read back out of stored provenance in the e2e test.
+    const node = {
+      id: 'n1',
+      label: 'Flag §8',
+      event: DOCUMENT_REVIEW_ACTIONS.flag,
+      createdOn: 2,
+      artifacts: [],
+      meta: { annotation: [], bookmark: [] },
+      children: [],
+      state: { type: 'checkpoint', val: {} },
+      level: 1,
+      parent: 'root',
+      sideEffects: { do: [], undo: [] },
+    } as unknown as TrrackedProvenance['nodes'][string];
+
+    expect(getColorForKey(getNodeColorKey(node)))
+      .toBe(DOCUMENT_REVIEW_ACTION_COLORS[DOCUMENT_REVIEW_ACTIONS.flag]);
+  });
+
+  test('actions without an explicit color still hash to a stable color', () => {
+    const first = getColorForKey('some other study action');
+    expect(first).toBe(getColorForKey('some other study action'));
+    expect(first).not.toBe(getColorForKey('a different action'));
+  });
+
+  test('the root and form-update keys still win over the explicit map', () => {
+    expect(getColorForKey(ROOT_KEY)).toBe(ROOT_COLOR);
+    expect(getColorForKey('update')).toBe(FORM_UPDATE_COLOR);
   });
 });

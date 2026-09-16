@@ -22,6 +22,10 @@ export default defineConfig(({ command, mode }) => {
     },
     test: {
       environment: 'jsdom',
+      // @trrack/core reaches @reduxjs/toolkit, which ships CJS. Externalized, Node
+      // resolves its named exports as ESM and fails; inlined, Vite applies its CJS
+      // interop and any test may import Trrack directly.
+      server: { deps: { inline: ['@trrack/core'] } },
       exclude: ['./tests/**', 'node_modules/**'],
       fileParallelism: true,
       maxWorkers: '100%',
