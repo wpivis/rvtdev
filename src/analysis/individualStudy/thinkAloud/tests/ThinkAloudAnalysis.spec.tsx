@@ -182,6 +182,8 @@ vi.mock('@mantine/core', () => ({
 
 vi.mock('@mantine/hooks', () => ({
   useResizeObserver: () => [{ current: null }, { width: 800, height: 20 }],
+  // These tests assert the desktop single-row footer layout.
+  useMediaQuery: () => false,
 }));
 
 vi.mock('@tabler/icons-react', () => ({

@@ -8,6 +8,7 @@ import {
   Group, HoverCard, Popover, SegmentedControl, Select, Stack, Text,
   Tooltip,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import {
   useCallback, useEffect, useMemo, useState,
@@ -108,6 +109,21 @@ export function ThinkAloudFooter({
   visibleParticipants: string[], rawTranscript: TranscribedAudio | null, currentShownTranscription: number | null, width: number, onTimeUpdate: (n: number) => void, isReplay: boolean, editedTranscript?: EditedText[], currentTrial: string, saveProvenance: (prov: unknown) => void, jumpedToLine?: number, studyId: string, setHasAudio: (b: boolean) => void, storageEngine: StorageEngine | undefined,
 }) {
   const auth = useAuth();
+
+  // The replay footer is a dense desktop toolbar. On a phone its fixed-width
+  // controls ran off the right edge, so below this breakpoint it becomes three
+  // stacked rows and only the least-used strip scrolls sideways.
+  const isNarrow = useMediaQuery('(max-width: 768px)') ?? false;
+  const controlOffset = isNarrow ? 0 : 'lg';
+  const selectStyle = isNarrow
+    ? { flex: '1 1 45%', minWidth: 0 }
+    : { width: '200px' };
+  const participantSelectStyle = isNarrow ? { ...selectStyle, order: 1 } : selectStyle;
+  const taskSelectStyle = isNarrow ? { ...selectStyle, order: 2 } : selectStyle;
+  const tagStackStyle = (order: number) => (isNarrow
+    ? { flex: '1 1 45%', minWidth: 0, order }
+    : undefined);
+  const tagSelectorWidth = isNarrow ? 150 : 200;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -465,6 +481,54 @@ export function ThinkAloudFooter({
     setBrowserWarningDismissed(false);
   }, [participantId, screenRecordingUrl, webcamRecordingUrl]);
 
+  const trailingControls = (
+    <>
+      <Button
+        mt={controlOffset}
+        variant="light"
+        component="a"
+        href={isReplay ? transcriptHref : replayHref}
+        target="_blank"
+      >
+        {isReplay ? 'Transcript' : 'Replay'}
+      </Button>
+      <Group mt={controlOffset} wrap="nowrap">
+        {audioUrl && (
+        <Tooltip label="Download audio">
+          <ActionIcon variant="light" size={30} onClick={handleDownloadAudio}>
+            <IconMusicDown />
+          </ActionIcon>
+        </Tooltip>
+        )}
+        {(screenRecordingUrl || webcamRecordingUrl) && (
+        <Tooltip label="Download recordings">
+          <ActionIcon variant="light" size={30} onClick={handleDownloadRecordings}>
+            <IconDeviceDesktopDown />
+          </ActionIcon>
+        </Tooltip>
+        )}
+        <ParticipantRejectModal selectedParticipants={[]} footer />
+      </Group>
+      {provenanceLegendEntries.size > 1 && (
+      <HoverCard width={160} position="top" withArrow shadow="md">
+        <HoverCard.Target>
+          <ActionIcon c="" size="lg" variant="light" mt={controlOffset} style={{ cursor: 'default' }}><IconPalette /></ActionIcon>
+        </HoverCard.Target>
+        <HoverCard.Dropdown>
+          <Stack gap={6}>
+            {Array.from(provenanceLegendEntries.entries()).map(([key, value]) => (
+              <Group key={key} gap={8}>
+                <ColorSwatch color={value.color} size={12} />
+                <span style={{ fontSize: 12 }}>{value.label}</span>
+              </Group>
+            ))}
+          </Stack>
+        </HoverCard.Dropdown>
+      </HoverCard>
+      )}
+    </>
+  );
+
   return (
     <AppShell.Footer zIndex={101} withBorder={false}>
       {currentTrial && participant && currentTrialClean === '' && (
@@ -483,18 +547,35 @@ export function ThinkAloudFooter({
           <Alert withCloseButton onClose={() => setBrowserWarningDismissed(true)} variant="filled" color="red" title={`Participant used ${getBrowser(participant.metadata?.userAgent ?? '')} — you are using ${getBrowser(navigator.userAgent)}. Video playback may not work properly.`} icon={<IconInfoCircle />} />
         </div>
       )}
-      <Stack style={{ backgroundColor: 'var(--mantine-color-blue-1)', height: '100%' }} gap={5} justify="center">
+      <Stack
+        style={{
+          backgroundColor: 'var(--mantine-color-blue-1)',
+          height: '100%',
+          // Belt and braces: if the stacked rows ever outgrow the footer height,
+          // scroll rather than clip the controls off the bottom of the screen.
+          overflowY: isNarrow ? 'auto' : undefined,
+        }}
+        gap={5}
+        justify="center"
+      >
 
         {participant && currentTrial && (!participant.answers[currentTrial] || participant.answers[currentTrial].endTime === -1) ? <Center><Text c="dimmed">{`Participant ${participant.participantId} has not completed this task`}</Text></Center> : null}
         <AudioProvenanceVis setHasAudio={setHasAudio} saveProvenance={saveProvenance} setTime={onTimeUpdate} setTimeString={(_t) => setTimeString(_t)} answers={participant ? participant.answers : {}} taskName={currentTrial} context={isReplay ? 'provenanceVis' : 'audioAnalysis'} />
         {xScale && transcriptLines ? <TranscriptSegmentsVis startTime={xScale.domain()[0]} xScale={xScale} transcriptLines={transcriptLines} currentShownTranscription={currentShownTranscription || 0} /> : null}
 
-        <Group gap="xs" style={{ width: '100%' }} justify="center" wrap="nowrap" mb={isReplay ? 0 : 'md'}>
-          <Group wrap="nowrap">
-            <Text ff="monospace" style={{ textAlign: 'right' }} mt="lg" c="dimmed">{timeString}</Text>
+        <Group
+          gap="xs"
+          style={{ width: '100%' }}
+          justify="center"
+          wrap={isNarrow ? 'wrap' : 'nowrap'}
+          mb={isReplay ? 0 : 'md'}
+          px={isNarrow ? 'xs' : 0}
+        >
+          <Group wrap="nowrap" style={isNarrow ? { width: '100%' } : undefined} justify={isNarrow ? 'center' : undefined}>
+            <Text ff="monospace" style={{ textAlign: 'right' }} mt={controlOffset} c="dimmed">{timeString}</Text>
 
             <Tooltip label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'}>
-              <ActionIcon aria-label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'} mt={25} size="lg" variant="light" onClick={() => { setIsPlaying(!isPlaying); }}>
+              <ActionIcon aria-label={hasEnded ? 'Restart' : isPlaying ? 'Pause' : 'Play'} mt={isNarrow ? 0 : 25} size="lg" variant="light" onClick={() => { setIsPlaying(!isPlaying); }}>
                 {hasEnded ? <IconRestore /> : isPlaying ? <IconPlayerPauseFilled /> : <IconPlayerPlayFilled />}
               </ActionIcon>
             </Tooltip>
@@ -502,7 +583,7 @@ export function ThinkAloudFooter({
             <Popover styles={{ dropdown: { padding: 0 } }} position="bottom" withArrow shadow="md">
               <Popover.Target>
                 <Tooltip label="Speed">
-                  <ActionIcon style={{ width: '50px' }} mt={25} variant="light">
+                  <ActionIcon style={{ width: '50px' }} mt={isNarrow ? 0 : 25} variant="light">
                     {`${speed}x`}
                   </ActionIcon>
                 </Tooltip>
@@ -533,7 +614,11 @@ export function ThinkAloudFooter({
 
           </Group>
 
-          <Group wrap="nowrap" gap="lg">
+          <Group
+            wrap={isNarrow ? 'wrap' : 'nowrap'}
+            gap={isNarrow ? 'xs' : 'lg'}
+            style={isNarrow ? { width: '100%' } : undefined}
+          >
 
             <Select
               leftSection={(
@@ -551,7 +636,7 @@ export function ThinkAloudFooter({
                 </Tooltip>
               )}
               label="Participant Id"
-              style={{ width: '200px' }}
+              style={participantSelectStyle}
               value={participantId}
               onChange={(e: string | null) => {
                 setSearchParams((params) => {
@@ -567,7 +652,7 @@ export function ThinkAloudFooter({
               searchable
             />
 
-            <Stack gap="4">
+            <Stack gap="4" style={tagStackStyle(3)}>
               <Group gap="xs" align="center">
                 <Text size="sm" fw={500}>Participant Tags</Text>
                 <Tooltip w={300} multiline label="Participant tags allow you to categorize or label the participant. Click in the box to add, create, or edit tags.">
@@ -575,7 +660,7 @@ export function ThinkAloudFooter({
                 </Tooltip>
               </Group>
               <TagSelector
-                width={200}
+                width={tagSelectorWidth}
                 tags={allParticipantTags || []}
                 editTagCallback={editParticipantTagCallback}
                 createTagCallback={createParticipantTagCallback}
@@ -615,7 +700,7 @@ export function ThinkAloudFooter({
                 </Tooltip>
               )}
               label="Task"
-              style={{ width: '200px' }}
+              style={taskSelectStyle}
               value={currentTrial}
               // this needs to be in a helper or two which we dont currently have
               onChange={(e: string | null) => {
@@ -626,7 +711,7 @@ export function ThinkAloudFooter({
               data={tasksList}
               searchable
             />
-            <Stack gap="4">
+            <Stack gap="4" style={tagStackStyle(4)}>
               <Group gap="xs" align="center">
                 <Text size="sm" fw={500}>Task Tags</Text>
                 <Tooltip w={300} multiline label="Task tags allow you to categorize or label the current task. Click in the box to add, create, or edit tags.">
@@ -634,7 +719,7 @@ export function ThinkAloudFooter({
                 </Tooltip>
               </Group>
               <TagSelector
-                width={200}
+                width={tagSelectorWidth}
                 tags={taskTags || []}
                 editTagCallback={editTaskTagCallback}
                 createTagCallback={createTaskTagCallback}
@@ -659,49 +744,18 @@ export function ThinkAloudFooter({
               />
             </Stack>
           </Group>
-          <Button
-            mt="lg"
-            variant="light"
-            component="a"
-            href={isReplay ? transcriptHref : replayHref}
-            target="_blank"
-          >
-            {isReplay ? 'Transcript' : 'Replay'}
-          </Button>
-          <Group mt="lg">
-            {audioUrl && (
-              <Tooltip label="Download audio">
-                <ActionIcon variant="light" size={30} onClick={handleDownloadAudio}>
-                  <IconMusicDown />
-                </ActionIcon>
-              </Tooltip>
-            )}
-            {(screenRecordingUrl || webcamRecordingUrl) && (
-              <Tooltip label="Download recordings">
-                <ActionIcon variant="light" size={30} onClick={handleDownloadRecordings}>
-                  <IconDeviceDesktopDown />
-                </ActionIcon>
-              </Tooltip>
-            )}
-            <ParticipantRejectModal selectedParticipants={[]} footer />
-          </Group>
-          {provenanceLegendEntries.size > 1 && (
-            <HoverCard width={160} position="top" withArrow shadow="md">
-              <HoverCard.Target>
-                <ActionIcon c="" size="lg" variant="light" mt="lg" style={{ cursor: 'default' }}><IconPalette /></ActionIcon>
-              </HoverCard.Target>
-              <HoverCard.Dropdown>
-                <Stack gap={6}>
-                  {Array.from(provenanceLegendEntries.entries()).map(([key, value]) => (
-                    <Group key={key} gap={8}>
-                      <ColorSwatch color={value.color} size={12} />
-                      <span style={{ fontSize: 12 }}>{value.label}</span>
-                    </Group>
-                  ))}
-                </Stack>
-              </HoverCard.Dropdown>
-            </HoverCard>
-          )}
+          {isNarrow ? (
+            <Group
+              gap="xs"
+              wrap="nowrap"
+              justify="center"
+              style={{
+                order: 5, width: '100%', overflowX: 'auto', paddingBottom: 2,
+              }}
+            >
+              {trailingControls}
+            </Group>
+          ) : trailingControls}
         </Group>
       </Stack>
     </AppShell.Footer>

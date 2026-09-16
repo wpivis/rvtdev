@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router';
 import {
   Box, Flex, Group, SegmentedControl, Text,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { useStorageEngine } from '../../storage/storageEngineHooks';
 import {
   useStoreActions,
@@ -44,12 +45,43 @@ const webcamTopWidths: Record<WebcamTopSize, string> = {
   large: '36%',
 };
 
+// Pixel widths for the floating overlay. On a phone the old
+// `min(320px, calc(100vw - 32px))` resolved to almost the full screen width and
+// buried the stimulus, so the overlay starts small there and can be grown.
+const overlayWidths: Record<WebcamTopSize, number> = {
+  small: 112, medium: 168, large: 320,
+};
+const overlaySizeOrder: WebcamTopSize[] = ['small', 'medium', 'large'];
+
+const overlayButtonStyle: CSSProperties = {
+  border: 0,
+  background: 'transparent',
+  color: 'white',
+  cursor: 'pointer',
+  padding: '0 6px',
+  lineHeight: 1,
+  fontSize: 12,
+  fontWeight: 700,
+};
+
 function WebcamReplayOverlay({
   mode, videoRef, videoStyle, hasWebcamVideo,
 }: WebcamReplayOverlayProps) {
   const webcamOverlayRef = useRef<HTMLDivElement>(null);
   const webcamDragRef = useRef<WebcamDrag | null>(null);
   const [webcamPosition, setWebcamPosition] = useState<{ left: number; top: number } | null>(null);
+  const isNarrow = useMediaQuery('(max-width: 768px)') ?? false;
+  const defaultSize: WebcamTopSize = isNarrow ? 'small' : (mode === 'webcam-only' ? 'large' : 'medium');
+  const [size, setSize] = useState<WebcamTopSize | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const activeSize = size ?? defaultSize;
+
+  const cycleSize = useCallback(() => {
+    setSize((current) => {
+      const index = overlaySizeOrder.indexOf(current ?? defaultSize);
+      return overlaySizeOrder[(index + 1) % overlaySizeOrder.length];
+    });
+  }, [defaultSize]);
 
   const handleWebcamPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     const overlay = webcamOverlayRef.current;
@@ -84,53 +116,86 @@ function WebcamReplayOverlay({
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   }, []);
 
+  // Park it clear of the analysis footer rather than over the middle of the stimulus.
+  const restingPlacement = isNarrow
+    ? { right: 8, top: 80 }
+    : (mode === 'webcam-only' ? { right: 16, bottom: 80 } : { right: 16, top: 140 });
+
   return (
     <Box
       ref={webcamOverlayRef}
       role="group"
       aria-label="Webcam recording replay"
       data-replay-layout={`${mode}-overlay`}
+      data-webcam-overlay-size={activeSize}
       style={{
         position: 'fixed',
         display: hasWebcamVideo ? undefined : 'none',
-        width: mode === 'webcam-only'
-          ? 'min(320px, calc(100vw - 32px))'
-          : 'min(320px, 28vw, calc(100vw - 32px))',
+        width: `min(${overlayWidths[activeSize]}px, calc(100vw - 16px))`,
         zIndex: 1000,
         background: 'black',
-        padding: '4px',
-        ...(webcamPosition || (mode === 'webcam-only' ? { right: 16, bottom: 80 } : { right: 16, top: 140 })),
+        padding: 3,
+        borderRadius: 6,
+        boxShadow: '0 6px 18px rgba(0,0,0,.35)',
+        ...(webcamPosition || restingPlacement),
       }}
     >
-      <button
-        type="button"
-        aria-label="Move webcam replay"
-        onPointerDown={handleWebcamPointerDown}
-        onPointerMove={handleWebcamPointerMove}
-        onPointerUp={handleWebcamPointerUp}
-        onPointerCancel={handleWebcamPointerUp}
-        style={{
-          display: 'block',
-          width: '100%',
-          padding: '4px 8px',
-          border: 0,
-          color: 'white',
-          background: 'black',
-          textAlign: 'left',
-          cursor: 'move',
-          userSelect: 'none',
-        }}
-      >
-        Webcam Recording · Drag to move
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <button
+          type="button"
+          aria-label="Move webcam replay"
+          onPointerDown={handleWebcamPointerDown}
+          onPointerMove={handleWebcamPointerMove}
+          onPointerUp={handleWebcamPointerUp}
+          onPointerCancel={handleWebcamPointerUp}
+          style={{
+            display: 'block',
+            flex: 1,
+            minWidth: 0,
+            padding: isNarrow ? '2px 4px' : '4px 8px',
+            border: 0,
+            color: 'white',
+            background: 'black',
+            textAlign: 'left',
+            cursor: 'move',
+            userSelect: 'none',
+            fontSize: isNarrow ? 10 : undefined,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {isNarrow ? 'Webcam' : 'Webcam Recording · Drag to move'}
+        </button>
+        <button
+          type="button"
+          aria-label="Resize webcam replay"
+          title="Resize"
+          onClick={cycleSize}
+          style={overlayButtonStyle}
+        >
+          {activeSize.charAt(0).toUpperCase()}
+        </button>
+        <button
+          type="button"
+          aria-label={collapsed ? 'Expand webcam replay' : 'Collapse webcam replay'}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          onClick={() => setCollapsed((current) => !current)}
+          style={overlayButtonStyle}
+        >
+          {collapsed ? '+' : '–'}
+        </button>
+      </div>
       <video
         ref={videoRef}
         width="100%"
         style={{
           ...videoStyle,
-          display: hasWebcamVideo ? 'block' : 'none',
+          display: hasWebcamVideo && !collapsed ? 'block' : 'none',
           margin: 0,
-          maxHeight: '35vh',
+          border: 0,
+          borderRadius: 4,
+          maxHeight: isNarrow ? '28vh' : '35vh',
           objectFit: 'cover',
         }}
       >

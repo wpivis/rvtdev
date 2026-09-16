@@ -157,7 +157,9 @@ export async function studyStoreCreator(
     answers: Object.keys(answers).length > 0 ? answers : emptyAnswers,
     sequence,
     config,
-    showStudyBrowser: true,
+    // The study browser is a 300px aside. On a phone that is the whole screen,
+    // so it starts closed there and stays available from the header menu.
+    showStudyBrowser: typeof window === 'undefined' || window.innerWidth > 768,
     showHelpText: false,
     alertModal: initialAlertModal ?? { show: false, message: '', title: '' },
     trialValidation: Object.keys(answers).length > 0 ? allValid : emptyValidation,

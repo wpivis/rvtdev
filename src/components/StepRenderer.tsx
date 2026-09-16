@@ -1,6 +1,7 @@
 import {
   ActionIcon, AppShell, Button, Flex, Menu,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { Outlet } from 'react-router';
 import {
   useCallback, useEffect, useMemo, useRef,
@@ -181,6 +182,9 @@ export function StepRenderer() {
   );
 
   const [hasAudio, setHasAudio] = useState<boolean>();
+  // The analysis footer stacks into three rows below this breakpoint, so it
+  // needs more height than the single-row desktop toolbar.
+  const isNarrowViewport = useMediaQuery('(max-width: 768px)') ?? false;
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const exportInProgressRef = useRef(false);
   const pdfExportRootRef = useRef<HTMLDivElement>(null);
@@ -275,7 +279,7 @@ export function StepRenderer() {
             padding="md"
             header={{ height: showTitleBar ? 70 : 0 }}
             aside={{ width: STUDY_BROWSER_WIDTH, breakpoint: 'xs', collapsed: { desktop: !asideOpen, mobile: !asideOpen } }}
-            footer={{ height: isAnalysis ? 125 + (hasAudio ? 55 : 0) : 0 }}
+            footer={{ height: isAnalysis ? (isNarrowViewport ? 275 : 125) + (hasAudio ? 55 : 0) : 0 }}
             style={{ '--app-shell-aside-offset': '0rem' } as CSSProperties}
           >
             {asideOpen && <AppAside />}
