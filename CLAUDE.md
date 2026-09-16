@@ -13,13 +13,16 @@ When you push a branch, finish your reply with the links, every time. Do not mak
 hunting for them:
 
 - **Branch on GitHub** — `https://github.com/wpivis/rvtdev/tree/<branch>`
-- **Netlify branch deploy** — `https://<branch-slug>--<site>.netlify.app`, where
+- **Netlify branch deploy** — `https://<branch-slug>--rvtdev.netlify.app`, where
   `<branch-slug>` is the branch name with `/` replaced by `-`
   (`claude/gamepad-demo` → `claude-gamepad-demo`). Deep-link to the specific study when
   there is one, e.g. `/demo-gamepad`.
 
-Say plainly when a link is a prediction you have not loaded rather than one you checked,
-and say so if a branch has no deploy because it is missing `netlify.toml`.
+`*.netlify.app` is blocked by the sandbox network policy (the proxy answers 403 to
+CONNECT), so a deploy link is always constructed from the branch name and never one you
+loaded. Say so. Say it plainly too if a branch has no deploy because it is missing
+`netlify.toml`, and flag that a brand-new branch only builds if the Netlify site deploys
+all branches rather than a named list.
 
 ## Demo branches, not pull requests
 

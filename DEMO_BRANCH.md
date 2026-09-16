@@ -16,7 +16,8 @@ request for it, dismiss the prompt.
 
 ## Trying it out
 
-Open the branch deploy and pick the **Gamepad Input with Provenance** study.
+Open <https://claude-gamepad-demo--rvtdev.netlify.app/demo-gamepad> — or the site root
+and pick the **Gamepad Input with Provenance** study.
 
 You need a game controller attached. Each trial starts with "press any button" —
 browsers hide gamepads from a page until it receives gamepad input, so that step is
