@@ -18,11 +18,38 @@ hunting for them:
   (`claude/gamepad-demo` → `claude-gamepad-demo`). Deep-link to the specific study when
   there is one, e.g. `/demo-gamepad`.
 
-`*.netlify.app` is blocked by the sandbox network policy (the proxy answers 403 to
-CONNECT), so a deploy link is always constructed from the branch name and never one you
-loaded. Say so. Say it plainly too if a branch has no deploy because it is missing
-`netlify.toml`, and flag that a brand-new branch only builds if the Netlify site deploys
-all branches rather than a named list.
+## Checking a deploy instead of guessing
+
+Netlify is reachable from the **Default** cloud environment, and a `NETLIFY` environment
+variable holds an account API token. Use it as a bearer token rather than inferring a
+deploy's state from HTTP status codes:
+
+```bash
+SITE=f0be812b-2af2-4d4a-9fe2-c0758a7f039a   # rvtdev
+curl -sS -H "Authorization: Bearer $NETLIFY" \
+  "https://api.netlify.com/api/v1/sites/$SITE/deploys?branch=<branch>&per_page=1"
+```
+
+`state: ready` with no `error_message` means it built, and `commit_ref` should be the
+commit you pushed. `GET /api/v1/deploys/<id>/files` lists what shipped; those `sha` values
+are plain sha1 of file content, so comparing them against a local `VITE_BASE_PATH=/ yarn
+build` proves the deploy is byte-identical to what you tested. The site-scoped
+`/sites/$SITE/files/<path>` endpoint reads **production**, not a branch deploy, so a 404
+there for a demo-branch file is expected and not a problem.
+
+What the token does *not* buy: looking at the rendered page. The site sits behind Netlify
+team access control, so an unauthenticated request to any branch deploy answers `401` and
+redirects to `app.netlify.com/edge-access`. Whether a study actually looks and behaves
+right is still a question for a signed-in human — ask, and say plainly that you could not
+see it yourself. A branch that has never built answers `404` instead of `401`, which is
+how you tell "no deploy" from "deployed, you are just not signed in".
+
+Say plainly if a branch has no deploy because it is missing `netlify.toml`. Netlify only
+auto-builds pushes made *after* a branch is added to the branch-deploy list, so the first
+build after adding one needs a real commit to trigger it — an empty commit will not do.
+
+The token is account-wide: it sees every site on the account, not just `rvtdev`. Treat it
+as a live credential, never print its value, and never commit it.
 
 ## Demo branches, not pull requests
 
