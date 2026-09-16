@@ -1,0 +1,35 @@
+@keyframes reflectBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+@keyframes reflectWave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}
+
+.blinkDot {
+  border-radius: 50%;
+  flex: none;
+  animation: reflectBlink 2s ease infinite;
+}
+
+.waveBar {
+  width: 4px;
+  border-radius: 2px;
+  transform-origin: center;
+  animation: reflectWave 1.2s ease-in-out infinite;
+}
+
+.paused .waveBar,
+.paused .blinkDot {
+  animation: none;
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blinkDot,
+  .waveBar {
+    animation: none;
+  }
+}

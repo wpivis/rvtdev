@@ -1,0 +1,216 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/dev/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "ASPIRE Cabarrus — Self-Assessment",
+    "version": "pilot",
+    "authors": [
+      "VIEW Lab"
+    ],
+    "date": "2026-09-16",
+    "description": "A phone-shaped, image-first Poverty Stoplight survey that records the participant's webcam and think-aloud narration alongside each answer.",
+    "organizations": [
+      "WPI"
+    ]
+  },
+  "uiConfig": {
+    "contactEmail": "contact@revisit.dev",
+    "logoPath": "revisitAssets/revisitLogoSquare.svg",
+    "helpTextPath": "demo-webcam-survey/assets/help.md",
+    "withProgressBar": true,
+    "withSidebar": false,
+    "nextButtonLocation": "belowStimulus",
+    "previousButtonText": "Previous",
+    "recordAudio": true,
+    "recordWebcam": true,
+    "studyEndMsg": "You may close this window now."
+  },
+  "importedLibraries": [
+    "webcam-recording"
+  ],
+  "components": {
+    "introduction": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/Introduction.tsx",
+      "nextButtonText": "Allow microphone & begin",
+      "recordAudio": false,
+      "recordWebcam": false,
+      "response": []
+    },
+    "household-violence": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/StoplightIndicator.tsx",
+      "previousButton": true,
+      "parameters": {
+        "dimension": "Health and Environment",
+        "indicator": 19,
+        "lifemapName": "We have no violence in our house.",
+        "shortName": "Household violence",
+        "stepLabel": "1 of 2",
+        "selfView": "bar",
+        "probes": [
+          "What made you rule out green?",
+          "What were you picturing as you read these?",
+          "Is this how last month looked too?"
+        ],
+        "levels": [
+          {
+            "color": "green",
+            "image": "demo-webcam-survey/assets/aspire/violence-green.png",
+            "text": "There is no physical, emotional, and economic abuse present in my home. I feel safe in my home."
+          },
+          {
+            "color": "yellow",
+            "image": "demo-webcam-survey/assets/aspire/violence-yellow.png",
+            "text": "There has been some physical, emotional, or economic abuse in my home, but we are taking steps to prevent it. For the most part, I feel safe in my home."
+          },
+          {
+            "color": "red",
+            "image": "demo-webcam-survey/assets/aspire/violence-red.png",
+            "text": "There is physical, emotional, or economic abuse in my household, and I do not feel safe at home."
+          }
+        ]
+      },
+      "response": [
+        {
+          "id": "level",
+          "type": "reactive",
+          "prompt": "Selected stoplight level",
+          "hidden": true
+        }
+      ]
+    },
+    "violence-reflect": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/ThinkAloudReflect.tsx",
+      "previousButton": true,
+      "parameters": {
+        "indicatorComponent": "household-violence",
+        "lifemapName": "We have no violence in our house.",
+        "selfView": "bar",
+        "probes": [
+          "What made you rule out green?",
+          "Who did you have in mind just then?"
+        ]
+      },
+      "response": [
+        {
+          "id": "reflectedOn",
+          "type": "reactive",
+          "prompt": "Level reflected on",
+          "hidden": true
+        },
+        {
+          "id": "typedReflection",
+          "type": "longText",
+          "prompt": "Prefer to type? (optional)",
+          "placeholder": "Type your answer…",
+          "location": "belowStimulus",
+          "required": false
+        }
+      ]
+    },
+    "addiction": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/StoplightIndicator.tsx",
+      "previousButton": true,
+      "parameters": {
+        "dimension": "Health and Environment",
+        "indicator": 18,
+        "lifemapName": "We are not held back by harmful habits.",
+        "shortName": "Addiction",
+        "stepLabel": "2 of 2",
+        "selfView": "bar",
+        "probes": [
+          "What made you rule out green?",
+          "Has this changed over the past year?"
+        ],
+        "levels": [
+          {
+            "color": "green",
+            "image": "demo-webcam-survey/assets/aspire/addiction-green.png",
+            "text": "My household is not negatively impacted by a household member's harmful habits (like excessive drinking, gambling, or drug use)."
+          },
+          {
+            "color": "yellow",
+            "image": "demo-webcam-survey/assets/aspire/addiction-yellow.png",
+            "text": "We are occasionally negatively impacted by a household member's harmful habits."
+          },
+          {
+            "color": "red",
+            "image": "demo-webcam-survey/assets/aspire/addiction-red.png",
+            "text": "We are frequently impacted by a household member's harmful habits."
+          }
+        ]
+      },
+      "response": [
+        {
+          "id": "level",
+          "type": "reactive",
+          "prompt": "Selected stoplight level",
+          "hidden": true
+        }
+      ]
+    },
+    "addiction-reflect": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/ThinkAloudReflect.tsx",
+      "previousButton": true,
+      "parameters": {
+        "indicatorComponent": "addiction",
+        "lifemapName": "We are not held back by harmful habits.",
+        "selfView": "bar",
+        "probes": [
+          "What would have to change to make this green?",
+          "How did you weigh the middle picture?"
+        ]
+      },
+      "response": [
+        {
+          "id": "reflectedOn",
+          "type": "reactive",
+          "prompt": "Level reflected on",
+          "hidden": true
+        },
+        {
+          "id": "typedReflection",
+          "type": "longText",
+          "prompt": "Prefer to type? (optional)",
+          "placeholder": "Type your answer…",
+          "location": "belowStimulus",
+          "required": false
+        }
+      ]
+    },
+    "summary": {
+      "type": "react-component",
+      "path": "demo-webcam-survey/assets/SessionSummary.tsx",
+      "nextButtonText": "Finish",
+      "recordAudio": false,
+      "parameters": {
+        "indicators": [
+          {
+            "component": "household-violence",
+            "shortName": "Household violence"
+          },
+          {
+            "component": "addiction",
+            "shortName": "Addiction"
+          }
+        ]
+      },
+      "response": []
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": [
+      "introduction",
+      "$webcam-recording.components.webcamRecordingPermission",
+      "household-violence",
+      "violence-reflect",
+      "addiction",
+      "addiction-reflect",
+      "summary"
+    ]
+  }
+}

@@ -674,6 +674,7 @@ export function useRecording() {
     isMediaCapturing,
     combinedMediaRecorder: currentMediaRecorder,
     audioMediaStream,
+    webcamMediaStream,
     screenWithAudioRecording,
     clickToRecord: currentComponentHasClickToRecord,
     isRejected,
