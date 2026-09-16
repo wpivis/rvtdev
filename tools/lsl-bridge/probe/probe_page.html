@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>reVISit LSL transport probe</title></head>
+<body>
+<h1>reVISit LSL bridge transport probe</h1>
+<p>Origin: <code id="origin"></code></p>
+<pre id="log"></pre>
+<script>
+  const log = (m) => {
+    document.getElementById('log').textContent += m + '\n';
+    window.__probeLog = (window.__probeLog || []).concat(m);
+  };
+  document.getElementById('origin').textContent = window.location.origin;
+  window.__probeResult = null;
+
+  const target = new URLSearchParams(window.location.search).get('ws')
+    || 'ws://localhost:8765';
+  log('isSecureContext=' + window.isSecureContext);
+  log('attempting ' + target);
+
+  let settled = false;
+  const settle = (verdict, detail) => {
+    if (settled) return;
+    settled = true;
+    window.__probeResult = { verdict, detail };
+    log('VERDICT ' + verdict + (detail ? ' :: ' + detail : ''));
+  };
+
+  try {
+    const ws = new WebSocket(target);
+    ws.onopen = () => { log('open'); ws.send('ping'); };
+    ws.onmessage = (e) => settle('CONNECTED', 'echo=' + e.data);
+    ws.onerror = () => settle('BLOCKED', 'error event');
+    ws.onclose = (e) => {
+      if (!settled) settle('BLOCKED', 'closed code=' + e.code + ' reason=' + (e.reason || 'none'));
+    };
+  } catch (err) {
+    settle('THREW', String(err));
+  }
+  setTimeout(() => settle('TIMEOUT', 'no resolution in 8s'), 8000);
+</script>
+</body>
+</html>

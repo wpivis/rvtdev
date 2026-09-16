@@ -1,0 +1,8 @@
+# Bridge + simulator. Python 3.10+.
+# pylsl ships a bundled liblsl on common platforms; if it does not on yours,
+# install liblsl from https://github.com/sccn/liblsl/releases first.
+pylsl>=1.16
+websockets>=12.0
+
+# Only needed to run the transport probe.
+playwright>=1.40
