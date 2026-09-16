@@ -71,8 +71,12 @@ async def run():
         assert not window["truncatedStart"], "buffer did not cover the lead-in"
         assert window["processing"] == "none", "trace must declare it is unprocessed"
 
-        # Channel 0 is HbO on the pair with the strongest task gain.
-        hbo = window["values"][0]
+        # Resolve chromophores from labels, never by index -- that is the whole
+        # point of the classification the bridge ships in the payload.
+        groups = window["chromophores"]
+        assert groups["unknown"] == [], f"unclassified channels: {groups}"
+        assert groups["HbO"] and groups["HbR"]
+        hbo = window["values"][groups["HbO"][0]]
         times = window["times"]
         baseline = [v for t, v in zip(times, hbo) if t < 0]
         peak_band = [v for t, v in zip(times, hbo) if 4.0 <= t <= 14.0]
@@ -82,7 +86,7 @@ async def run():
         assert lift > 0.25, f"no haemodynamic response visible (lift={lift:.3f})"
 
         # HbR must move opposite to HbO, as it does in real tissue.
-        hbr = window["values"][1]
+        hbr = window["values"][groups["HbR"][0]]
         hbr_band = [v for t, v in zip(times, hbr) if 4.0 <= t <= 14.0]
         hbr_base = [v for t, v in zip(times, hbr) if t < 0]
         hbr_delta = min(hbr_band) - (sum(hbr_base) / len(hbr_base))

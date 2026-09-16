@@ -32,7 +32,10 @@ import websockets
 from pylsl import StreamInfo, StreamInlet, StreamOutlet, local_clock, resolve_byprop
 
 from labrecorder import LabRecorder
-from windowing import DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT, cut_window, detect_gaps, effective_rate
+from windowing import (
+    DEFAULT_LEAD_IN, DEFAULT_LEAD_OUT, classify_channels, cut_window, detect_gaps,
+    effective_rate,
+)
 
 PROTOCOL_VERSION = 1
 STATUS_INTERVAL = 1.0
@@ -154,6 +157,10 @@ class Bridge:
             "streamName": self.buffer.name or None,
             "channels": len(self.buffer.channel_labels) or None,
             "channelLabels": self.buffer.channel_labels or None,
+            "chromophores": (
+                classify_channels(self.buffer.channel_labels)
+                if self.buffer.channel_labels else None
+            ),
             "nominalRate": nominal or None,
             "effectiveRate": round(rate, 2) if rate else None,
             "secondsSinceSample": stale,
@@ -266,6 +273,9 @@ class Bridge:
             "truncatedEnd": window.truncated_end,
             "streamName": self.buffer.name,
             "nominalRate": self.buffer.nominal_rate,
+            # Which indices are HbO vs HbR, resolved from labels. The renderer
+            # must use this rather than assuming an interleaving order.
+            "chromophores": classify_channels(self.buffer.channel_labels),
             # Surfaced so the analysis page can label the trace honestly.
             "processing": "none",
         })

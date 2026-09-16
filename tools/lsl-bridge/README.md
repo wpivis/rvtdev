@@ -81,6 +81,37 @@ The rolling buffer keeps the whole session (`--retain`, default 300 s), so
 per-task windows are views over a continuous trace rather than the only record —
 the full timeline can be reassembled later.
 
+## Assumptions about the fNIRS stream
+
+The lab runs NIRx hardware with Aurora. Nobody has confirmed what its LSL stream
+actually looks like yet, so these are assumptions. Each one is written to be
+cheap to be wrong about — none is hardcoded anywhere that matters.
+
+| Assumption | Basis | If wrong |
+| --- | --- | --- |
+| Aurora streams **HbO/HbR concentration**, not raw intensity | Aurora computes concentrations online for its own neurofeedback path | Raw intensity needs modified Beer-Lambert conversion and motion-artifact correction upstream of this bridge. That is a signal-processing project, not plumbing, and belongs in Python before the LSL outlet — not here, and definitely not in the browser. |
+| Stream **type** is `NIRS` | LSL convention | One `--sensor-type` flag |
+| Channels labelled `S<n>_D<m> HbO\|HbR` | NIRx montage naming | Nothing: channels are classified from labels by `classify_channels()`, which handles `Oxy-Hb`, `HbO2`, `HHb`, `deoxyHb` and friends, and reports anything it cannot place as `unknown` rather than guessing |
+| ~20 source-detector pairs, ~10 Hz | Typical small prefrontal montage | Nothing: the bridge reads `channel_count` and `nominal_srate` from the stream header at attach time |
+
+**The sample rate is not a property of the device.** On NIRx hardware it falls
+out of the montage and Aurora's multiplexing settings — published studies report
+~3.9 Hz for high-density NIRScoutX, 4.5 Hz for a 16x16 / 43-channel NIRSport2
+montage, and ~10 Hz for small prefrontal montages. So it changes when the montage
+changes, and nothing downstream may assume a number. The bridge reads it from the
+stream header and reports observed-vs-nominal in `status`.
+
+The simulator's defaults (`--pairs 20 --rate 10.2`) are a plausible prefrontal
+montage, not a claim about any specific setup.
+
+### Still to confirm with the lab
+
+1. Does Aurora stream raw intensity or HbO/HbR concentration?
+2. Nominal rate, channel count and channel labels for the usual montage?
+3. Does Aurora publish any **per-channel signal quality** on the LSL stream?
+   (See the health section below — without this, the indicator can only report
+   that the pipe is intact.)
+
 ## Health, and what it cannot tell you
 
 `status.healthy` means **the pipe is intact**: inlet attached, samples arriving,

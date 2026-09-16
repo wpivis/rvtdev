@@ -1,7 +1,7 @@
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from windowing import cut_window, detect_gaps, effective_rate  # noqa: E402
+from windowing import classify_channels, cut_window, detect_gaps, effective_rate  # noqa: E402
 
 
 def _ramp(n, rate=10.0, t0=100.0):
@@ -64,6 +64,31 @@ def test_effective_rate_and_gap_detection():
     assert detect_gaps(times, 10.0) == 0
     times_with_gap = times[:50] + [t + 5.0 for t in times[50:]]
     assert detect_gaps(times_with_gap, 10.0) == 1
+
+
+def test_chromophores_are_classified_by_label_not_index():
+    labels = ["S1_D1 HbO", "S1_D1 HbR", "S1_D2 HbO", "S1_D2 HbR"]
+    assert classify_channels(labels) == {
+        "HbO": [0, 2], "HbR": [1, 3], "HbT": [], "unknown": []
+    }
+
+
+def test_deoxy_spellings_are_not_swallowed_by_the_oxy_pattern():
+    # "deoxy-hb" contains "oxy-hb"; "hhb" contains "hb". Both must resolve to HbR.
+    for hbr_label in ("Deoxy-Hb 1", "deoxyHb", "HHb S1D1", "S1_D1 HbR"):
+        got = classify_channels([hbr_label])
+        assert got["HbR"] == [0], f"{hbr_label!r} classified as {got}"
+
+
+def test_unrecognised_channels_are_reported_not_guessed():
+    got = classify_channels(["AUX1", "Trigger", ""])
+    assert got["unknown"] == [0, 1, 2]
+    assert got["HbO"] == [] and got["HbR"] == []
+
+
+def test_total_haemoglobin_is_kept_separate_from_hbo():
+    got = classify_channels(["S1_D1 HbT", "S1_D1 HbO"])
+    assert got["HbT"] == [0] and got["HbO"] == [1]
 
 
 if __name__ == "__main__":

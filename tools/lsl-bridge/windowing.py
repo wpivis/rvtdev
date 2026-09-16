@@ -112,3 +112,37 @@ def detect_gaps(times: list[float], nominal_rate: float, tolerance: float = 3.0)
         return 0
     limit = tolerance / nominal_rate
     return sum(1 for a, b in zip(times, times[1:]) if b - a > limit)
+
+
+# Channel ordering within an fNIRS stream is vendor- and montage-dependent, and
+# we have not confirmed Aurora's against real hardware. Anything downstream that
+# needs "the HbO channels" must ask by label, never by index, or a montage change
+# silently relabels the trace.
+#
+# Order matters: "deoxy-hb" contains "oxy-hb", and "hhb" contains "hb", so the
+# deoxygenated patterns are tested first and the generic ones last.
+HBR_PATTERNS = ("deoxy", "hbr", "hhb")
+HBO_PATTERNS = ("hbo", "oxyhb", "oxy-hb", "oxy_hb", "o2hb", "hbo2")
+HBT_PATTERNS = ("hbt", "total-hb", "totalhb")
+
+
+def classify_channels(labels: list[str]) -> dict[str, list[int]]:
+    """Group channel indices by chromophore, from their LSL labels.
+
+    Returns {"HbO": [...], "HbR": [...], "HbT": [...], "unknown": [...]}.
+    Matching is case-insensitive. Deoxygenated patterns are checked first
+    because several vendor spellings of HbR contain an HbO pattern as a
+    substring.
+    """
+    out: dict[str, list[int]] = {"HbO": [], "HbR": [], "HbT": [], "unknown": []}
+    for i, raw in enumerate(labels):
+        label = (raw or "").lower()
+        if any(p in label for p in HBR_PATTERNS):
+            out["HbR"].append(i)
+        elif any(p in label for p in HBT_PATTERNS):
+            out["HbT"].append(i)
+        elif any(p in label for p in HBO_PATTERNS):
+            out["HbO"].append(i)
+        else:
+            out["unknown"].append(i)
+    return out

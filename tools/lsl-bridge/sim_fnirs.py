@@ -99,15 +99,24 @@ class MarkerListener:
 
 
 def build_outlet(pairs: int, rate: float) -> StreamOutlet:
+    """Advertise the montage the way Aurora does: one LSL channel per
+    source-detector pair per chromophore, labelled `S<n>_D<m> HbO|HbR`.
+
+    Consumers must classify channels by these labels rather than by index: the
+    interleaving order is an assumption we have not confirmed against a real
+    Aurora stream (see ASSUMPTIONS in README.md).
+    """
     channels = pairs * 2
     info = StreamInfo("SimNIRS", "NIRS", channels, rate, "float32", "revisit-sim-nirs")
     desc = info.desc()
     desc.append_child_value("manufacturer", "reVISit fNIRS simulator")
     chans = desc.append_child("channels")
     for pair in range(pairs):
+        source = pair // 2 + 1
+        detector = pair % 2 + 1
         for chromophore in ("HbO", "HbR"):
             ch = chans.append_child("channel")
-            ch.append_child_value("label", f"S{pair + 1}_D{pair + 1} {chromophore}")
+            ch.append_child_value("label", f"S{source}_D{detector} {chromophore}")
             ch.append_child_value("type", chromophore)
             ch.append_child_value("unit", "micromolar")
     return StreamOutlet(info)
@@ -115,8 +124,13 @@ def build_outlet(pairs: int, rate: float) -> StreamOutlet:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pairs", type=int, default=4, help="source-detector pairs")
-    ap.add_argument("--rate", type=float, default=10.0, help="sampling rate, Hz")
+    ap.add_argument("--pairs", type=int, default=20,
+                    help="source-detector pairs; each yields an HbO and an HbR channel")
+    ap.add_argument("--rate", type=float, default=10.2,
+                    help="sampling rate, Hz. On NIRx hardware this falls out of the "
+                         "montage and Aurora's multiplexing, not the device model: "
+                         "published values run ~3.9 Hz (high density) to ~10 Hz (small "
+                         "prefrontal montages). Nothing downstream hardcodes it.")
     ap.add_argument("--marker-stream", default="reVISit-Markers")
     ap.add_argument("--noise", type=float, default=0.05)
     args = ap.parse_args()
