@@ -33,7 +33,11 @@ curl -sS -H "Authorization: Bearer $NETLIFY" \
 `state: ready` with no `error_message` means it built, and `commit_ref` should be the
 commit you pushed. `GET /api/v1/deploys/<id>/files` lists what shipped; those `sha` values
 are plain sha1 of file content, so comparing them against a local `VITE_BASE_PATH=/ yarn
-build` proves the deploy is byte-identical to what you tested. The site-scoped
+build` proves the deploy is byte-identical to what you tested. Compare paths
+case-insensitively: the API lowercases them, so Vite's hashed filenames come back as
+`bar-dvfw8ajk.js` against a local `bar-DvFw8AJk.js` and a naive comparison reports
+hundreds of false mismatches. Expect `netlify.toml` in the deploy and not in `dist`. The
+site-scoped
 `/sites/$SITE/files/<path>` endpoint reads **production**, not a branch deploy, so a 404
 there for a demo-branch file is expected and not a problem.
 
