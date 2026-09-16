@@ -23,6 +23,7 @@ import { studyComponentToIndividualComponent } from '../utils/handleComponentInh
 import { useCurrentComponent } from '../routes/utils';
 import { useFetchStylesheet } from '../utils/fetchStylesheet';
 import { RecordingContext, useRecording } from '../store/hooks/useRecording';
+import { useGamepad } from '../store/hooks/useGamepad';
 import { ScreenRecordingRejection } from './interface/ScreenRecordingRejection';
 import { ReplayContext, useReplay } from '../store/hooks/useReplay';
 import { DeviceWarning } from './interface/DeviceWarning';
@@ -149,6 +150,30 @@ export function StepRenderer() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Gamepad input is polled rather than event-driven, so it is captured separately
+  // from the DOM listeners above. Button transitions are pushed as they happen --
+  // debouncing them would merge distinct presses -- while the continuous axis
+  // signal is throttled to the same budget as mousemove.
+  const lastAxisEventTime = useRef(0);
+  useGamepad({
+    onConnectionChange: (device, timestamp) => {
+      windowEvents.current.push([timestamp, 'gamepadconnection', device ? `connected:${device.id}:${device.mapping || 'nonstandard'}` : 'disconnected']);
+    },
+    onButtonDown: (button, index, timestamp) => {
+      windowEvents.current.push([timestamp, 'gamepadbuttondown', button]);
+    },
+    onButtonUp: (button, index, timestamp) => {
+      windowEvents.current.push([timestamp, 'gamepadbuttonup', button]);
+    },
+    onAxes: (axes, timestamp) => {
+      if (timestamp - lastAxisEventTime.current < windowEventDebounceTime) {
+        return;
+      }
+      lastAxisEventTime.current = timestamp;
+      windowEvents.current.push([timestamp, 'gamepadaxis', axes.map((value) => Math.round(value * 1000) / 1000)]);
+    },
+  });
 
   const { developmentModeEnabled, dataCollectionEnabled } = useMemo(() => modes, [modes]);
 

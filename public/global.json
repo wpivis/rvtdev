@@ -11,6 +11,7 @@
     "demo-svelte-trrack",
     "demo-react-trrack",
     "demo-screen-recording",
+    "demo-gamepad",
     "demo-image",
     "demo-vega",
     "demo-video",
@@ -70,6 +71,9 @@
     },
     "demo-screen-recording": {
       "path": "demo-screen-recording/config.json"
+    },
+    "demo-gamepad": {
+      "path": "demo-gamepad/config.json"
     },
     "demo-html-input": {
       "path": "demo-html-input/config.json"
