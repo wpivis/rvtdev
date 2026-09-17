@@ -204,6 +204,45 @@ describe('useLsl messages', () => {
     expect(typeof marker.browserTime).toBe('number');
   });
 
+  test('a stopped trial is owed a window until one arrives', async () => {
+    const { result } = renderHook(() => useLsl());
+    act(() => { FakeWebSocket.latest().open(); });
+
+    act(() => { result.current.sendMarker('trialStop', 'barChart_2'); });
+    await waitFor(() => expect(result.current.pendingWindows).toEqual(['barChart_2']));
+
+    act(() => {
+      FakeWebSocket.latest().emit({
+        type: 'window', task: 'barChart_2', times: [0], values: [[1]],
+      });
+    });
+    await waitFor(() => expect(result.current.pendingWindows).toEqual([]));
+  });
+
+  test('several outstanding trials are tracked independently', async () => {
+    const { result } = renderHook(() => useLsl());
+    act(() => { FakeWebSocket.latest().open(); });
+    act(() => {
+      result.current.sendMarker('trialStop', 'a_1');
+      result.current.sendMarker('trialStop', 'b_2');
+    });
+    await waitFor(() => expect(result.current.pendingWindows).toEqual(['a_1', 'b_2']));
+    act(() => {
+      FakeWebSocket.latest().emit({
+        type: 'window', task: 'b_2', times: [0], values: [[1]],
+      });
+    });
+    // Windows arrive a lead-out after their task, so out-of-order is normal.
+    await waitFor(() => expect(result.current.pendingWindows).toEqual(['a_1']));
+  });
+
+  test('a trialStart does not create a pending window', () => {
+    const { result } = renderHook(() => useLsl());
+    act(() => { FakeWebSocket.latest().open(); });
+    act(() => { result.current.sendMarker('trialStart', 'barChart_2'); });
+    expect(result.current.pendingWindows).toEqual([]);
+  });
+
   test('sending before the socket opens does not throw', () => {
     const { result } = renderHook(() => useLsl());
     expect(() => act(() => { result.current.sendMarker('trialStart', 'x'); })).not.toThrow();
@@ -214,6 +253,7 @@ describe('useLsl messages', () => {
 describe('useLslTrialMarkers', () => {
   const makeLsl = (overrides: Partial<LslState> = {}): LslState => ({
     enabled: true,
+    pendingWindows: [],
     bridgeConnected: true,
     status: null,
     windows: {},

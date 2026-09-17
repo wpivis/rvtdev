@@ -61,6 +61,15 @@ export interface LslWindow {
 export interface LslState {
   /** Whether the study config asks for a bridge at all. */
   enabled: boolean;
+  /**
+   * Tasks whose trialStop has been sent but whose window has not arrived.
+   *
+   * A window is cut `leadOut` seconds after its task ends, so it lands well
+   * after the participant has moved on -- and after a short study, after they
+   * have finished entirely. Anything still listed here is data that will be
+   * lost if the tab closes.
+   */
+  pendingWindows: string[];
   /** Whether the WebSocket to the bridge is open. */
   bridgeConnected: boolean;
   status: LslStatus | null;
@@ -75,6 +84,7 @@ export interface LslState {
 
 const EMPTY_STATE: LslState = {
   enabled: false,
+  pendingWindows: [],
   bridgeConnected: false,
   status: null,
   windows: {},
@@ -114,6 +124,7 @@ export function useLsl(): LslState {
   const [bridgeConnected, setBridgeConnected] = useState(false);
   const [status, setStatus] = useState<LslStatus | null>(null);
   const [windows, setWindows] = useState<Record<string, LslWindow>>({});
+  const [pendingWindows, setPendingWindows] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const socket = useRef<WebSocket | null>(null);
@@ -193,6 +204,7 @@ export function useLsl(): LslState {
         } else if (msg.type === 'window') {
           const win = msg as unknown as LslWindow;
           setWindows((prev) => ({ ...prev, [win.task]: win }));
+          setPendingWindows((prev) => prev.filter((t) => t !== win.task));
         } else if (msg.type === 'error' || msg.type === 'warning') {
           setError(typeof msg.message === 'string' ? msg.message : 'bridge reported a problem');
         }
@@ -244,6 +256,10 @@ export function useLsl(): LslState {
     send({
       type: 'marker', event, task, detail, browserTime: Date.now(),
     });
+    if (event === 'trialStop') {
+      // Owed a window from here until the bridge sends one.
+      setPendingWindows((prev) => (prev.includes(task) ? prev : [...prev, task]));
+    }
   }, [send]);
 
   const startRecording = useCallback(() => send({ type: 'startRecording' }), [send]);
@@ -251,6 +267,7 @@ export function useLsl(): LslState {
 
   return useMemo(() => ({
     enabled,
+    pendingWindows,
     bridgeConnected,
     status,
     windows,
@@ -258,7 +275,8 @@ export function useLsl(): LslState {
     sendMarker,
     startRecording,
     stopRecording,
-  }), [enabled, bridgeConnected, status, windows, error, sendMarker, startRecording, stopRecording]);
+  }), [enabled, pendingWindows, bridgeConnected, status, windows, error,
+    sendMarker, startRecording, stopRecording]);
 }
 
 /**

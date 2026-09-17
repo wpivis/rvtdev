@@ -26,6 +26,7 @@ import { RecordingContext, useRecording } from '../store/hooks/useRecording';
 import { ScreenRecordingRejection } from './interface/ScreenRecordingRejection';
 import { ReplayContext, useReplay } from '../store/hooks/useReplay';
 import { LslContext, useLsl, useLslTrialMarkers } from '../store/hooks/useLsl';
+import { LslPendingWindows } from './interface/LslPendingWindows';
 import { useLslPersistence } from '../store/hooks/useLslPersistence';
 import { DeviceWarning } from './interface/DeviceWarning';
 import { handleBeforeUnload, shouldConfirmTabClose } from '../utils/closeTabConfirmation';
@@ -247,6 +248,7 @@ export function StepRenderer() {
                   </Button>
                   )}
                   <Outlet />
+                  <LslPendingWindows />
                 </AppShell.Main>
               </Flex>
               {isAnalysis && (

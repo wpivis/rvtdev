@@ -14,7 +14,9 @@ import { useLslContext } from '../../store/hooks/useLsl';
  * otherwise would be worse than no dot at all.
  */
 export function LslStatusIndicator() {
-  const { enabled, bridgeConnected, status } = useLslContext();
+  const {
+    enabled, bridgeConnected, status, pendingWindows,
+  } = useLslContext();
 
   const { color, label } = useMemo(() => {
     if (!bridgeConnected) {
@@ -26,8 +28,16 @@ export function LslStatusIndicator() {
     if (!status.healthy) {
       return { color: 'yellow', label: 'Signal interrupted' };
     }
+    if (pendingWindows.length) {
+      // A window is cut leadOut seconds after its task ends, so these are still
+      // in flight. Closing the tab now loses them.
+      return {
+        color: 'blue',
+        label: `Saving ${pendingWindows.length} trace${pendingWindows.length === 1 ? '' : 's'}…`,
+      };
+    }
     return { color: 'green', label: 'Signal connected' };
-  }, [bridgeConnected, status]);
+  }, [bridgeConnected, status, pendingWindows]);
 
   if (!enabled) {
     return null;
@@ -70,6 +80,12 @@ export function LslStatusIndicator() {
             <Text size="xs" c="dimmed">Gaps</Text>
             <Text size="xs">{status?.gaps ?? '—'}</Text>
           </Group>
+          {pendingWindows.length > 0 && (
+            <Text size="xs" c="blue" mt={6}>
+              {`Waiting on ${pendingWindows.length} trace(s) from the bridge. `}
+              Each arrives a lead-out after its task ends; keep this tab open.
+            </Text>
+          )}
           <Text size="xs" c="dimmed" mt={6}>
             Connection only. Signal quality is judged in the sensor&apos;s own
             acquisition software.
