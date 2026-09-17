@@ -32,6 +32,7 @@ vi.mock('../../../store/store', () => ({
 
 vi.mock('react-router', () => ({
   useParams: () => ({ studyId: 'test-study' }),
+  useSearchParams: () => [new URLSearchParams({ participantId: 'p1' }), vi.fn()],
 }));
 
 vi.mock('../../../analysis/individualStudy/thinkAloud/ThinkAloudFooter', () => ({
@@ -57,28 +58,28 @@ describe('AnalysisFooter', () => {
   });
 
   test('renders ThinkAloudFooter', () => {
-    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} />);
+    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} setHasSensor={vi.fn()} />);
     expect(html).toContain('data-testid="think-aloud-footer"');
   });
 
   test('passes studyId to ThinkAloudFooter', () => {
-    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} />);
+    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} setHasSensor={vi.fn()} />);
     expect(html).toContain('data-study-id="test-study"');
   });
 
   test('passes currentTrial identifier to ThinkAloudFooter', () => {
-    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} />);
+    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} setHasSensor={vi.fn()} />);
     expect(html).toContain('data-trial="trial1_0"');
   });
 
   test('passes participant list to ThinkAloudFooter', () => {
-    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} />);
+    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} setHasSensor={vi.fn()} />);
     expect(html).toContain('data-participants="p1,p2"');
   });
 
   test('renders with no storageEngine', () => {
     mockStorageEngine = undefined;
-    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} />);
+    const html = renderToStaticMarkup(<AnalysisFooter setHasAudio={vi.fn()} setHasSensor={vi.fn()} />);
     expect(html).toContain('data-testid="think-aloud-footer"');
   });
 });

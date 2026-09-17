@@ -141,6 +141,8 @@ def main() -> None:
 
     # Per-pair phase offsets so channels are not identical.
     phases = [random.random() * math.tau for _ in range(args.pairs)]
+    # Roughly half the montage sits over the region driven by the task.
+    active_pairs = max(1, args.pairs // 2)
     period = 1.0 / args.rate
     next_tick = time.perf_counter()
     t0 = local_clock()
@@ -160,8 +162,9 @@ def main() -> None:
                 + 0.08 * math.sin(math.tau * 1.10 * elapsed + ph * 3)  # cardiac
                 + 0.20 * math.sin(math.tau * 0.008 * elapsed + ph)     # slow drift
             )
-            # Response strength falls off across pairs: pair 1 is "on task".
-            gain = 1.0 / (1.0 + pair)
+            # Channels over the active region respond; the rest pick up only a
+            # little, as neighbouring optodes do.
+            gain = 1.0 if pair < active_pairs else 0.15
             hbo = gain * task_response + physiology + random.gauss(0, args.noise)
             hbr = HBR_SCALE * gain * task_response + 0.4 * physiology + random.gauss(0, args.noise)
             sample.extend([hbo, hbr])

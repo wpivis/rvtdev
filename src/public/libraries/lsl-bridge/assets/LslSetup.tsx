@@ -40,10 +40,23 @@ function LslSetup({ setAnswer }: StimulusParams<undefined>) {
   const flowing = !!status?.healthy;
   const ready = bridgeConnected && streamPresent && flowing;
 
+  // While samples are not flowing, the last observed rate is stale and reads as
+  // healthy. Report the stall instead.
+  const since = status?.secondsSinceSample;
+  let staleDetail = 'No samples have arrived yet.';
+  if (since !== null && since !== undefined) {
+    staleDetail = `No samples for ${since.toFixed(1)}s.`;
+  } else if (streamPresent) {
+    staleDetail = 'Attached to the stream, but no samples have arrived.';
+  }
+
   useEffect(() => {
     setAnswer({
       status: ready,
       answers: { lslBridgeReady: ready },
+      message: ready
+        ? undefined
+        : 'Waiting for the sensor stream. Check that the bridge and the sensor\u2019s acquisition software are both running on this machine.',
     });
   }, [ready, setAnswer]);
 
@@ -87,9 +100,9 @@ function LslSetup({ setAnswer }: StimulusParams<undefined>) {
         <Check
           ok={flowing}
           label="Samples arriving"
-          detail={status?.effectiveRate
-            ? `${status.effectiveRate} Hz observed against ${status.nominalRate ?? '?'} Hz nominal.`
-            : 'No samples have arrived yet.'}
+          detail={flowing
+            ? `${status?.effectiveRate} Hz observed against ${status?.nominalRate ?? '?'} Hz nominal.`
+            : staleDetail}
         />
       </Stack>
 
@@ -111,8 +124,7 @@ function LslSetup({ setAnswer }: StimulusParams<undefined>) {
             <Table.Tr>
               <Table.Td>Buffered</Table.Td>
               <Table.Td>
-                {status.bufferedSeconds}
-                s
+                {flowing ? `${status.bufferedSeconds}s` : 'stream stalled'}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>

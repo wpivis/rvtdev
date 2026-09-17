@@ -12,6 +12,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import {
   useCallback, useEffect, useMemo, useState,
 } from 'react';
+import type { ReactNode } from 'react';
 import * as d3 from 'd3';
 
 import {
@@ -95,9 +96,11 @@ async function getTags(storageEngine: StorageEngine | undefined, type: 'particip
 }
 
 export function ThinkAloudFooter({
-  visibleParticipants, rawTranscript, currentShownTranscription, width, onTimeUpdate, isReplay, editedTranscript, currentTrial, saveProvenance, jumpedToLine = 0, studyId, setHasAudio, storageEngine,
+  visibleParticipants, rawTranscript, currentShownTranscription, width, onTimeUpdate, isReplay, editedTranscript, currentTrial, saveProvenance, jumpedToLine = 0, studyId, setHasAudio, storageEngine, extraTrack,
 }: {
   visibleParticipants: string[], rawTranscript: TranscribedAudio | null, currentShownTranscription: number | null, width: number, onTimeUpdate: (n: number) => void, isReplay: boolean, editedTranscript?: EditedText[], currentTrial: string, saveProvenance: (prov: unknown) => void, jumpedToLine?: number, studyId: string, setHasAudio: (b: boolean) => void, storageEngine: StorageEngine | undefined,
+  /** Rendered above the timeline, inside the footer. Used for sensor traces. */
+  extraTrack?: ReactNode,
 }) {
   const auth = useAuth();
 
@@ -402,8 +405,12 @@ export function ThinkAloudFooter({
     return `${PREFIX}${studyId}/${encryptIndex(currentStep)}${funcPath}?participantId=${participantId}&revisitPageId=${revisitPageId}`;
   }, [currentTrial, participant, participantId, studyId]);
 
+  // Column layout so an extra track above the timeline takes its own height and
+  // the timeline takes the remainder, rather than the timeline keeping a
+  // full-height box and overflowing the footer.
   return (
-    <AppShell.Footer zIndex={101} withBorder={false}>
+    <AppShell.Footer zIndex={101} withBorder={false} style={{ display: 'flex', flexDirection: 'column' }}>
+      {extraTrack}
       {currentTrial && participant && currentTrialClean === '' && (
         <div style={{
           position: 'absolute', top: -5, left: 5, transform: 'translateY(-100%)',
@@ -412,7 +419,7 @@ export function ThinkAloudFooter({
           <Alert variant="filled" color="red" title="Participant hasn&apos;t completed any tasks." icon={<IconInfoCircle />} />
         </div>
       )}
-      <Stack style={{ backgroundColor: 'var(--mantine-color-blue-1)', height: '100%' }} gap={5} justify="center">
+      <Stack style={{ backgroundColor: 'var(--mantine-color-blue-1)', flex: 1, minHeight: 0 }} gap={5} justify="center">
 
         {participant && currentTrial && (!participant.answers[currentTrial] || participant.answers[currentTrial].endTime === -1) ? <Center><Text c="dimmed">{`Participant ${participant.participantId} has not completed this task`}</Text></Center> : null}
         <AudioProvenanceVis setHasAudio={setHasAudio} saveProvenance={saveProvenance} setTime={onTimeUpdate} setTimeString={(_t) => setTimeString(_t)} answers={participant ? participant.answers : {}} taskName={currentTrial} context={isReplay ? 'provenanceVis' : 'audioAnalysis'} />
