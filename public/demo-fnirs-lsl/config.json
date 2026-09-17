@@ -24,7 +24,8 @@
       "port": 8765,
       "sensorType": "NIRS",
       "leadIn": 5,
-      "leadOut": 15
+      "leadOut": 15,
+      "recordSensor": false
     }
   },
   "components": {
@@ -36,7 +37,8 @@
     "restBaseline": {
       "type": "markdown",
       "path": "demo-fnirs-lsl/assets/rest.md",
-      "response": []
+      "response": [],
+      "recordSensor": true
     },
     "barChartTask": {
       "type": "markdown",
@@ -53,7 +55,8 @@
             "C"
           ]
         }
-      ]
+      ],
+      "recordSensor": true
     },
     "scatterTask": {
       "type": "markdown",
@@ -69,7 +72,8 @@
             "Negative"
           ]
         }
-      ]
+      ],
+      "recordSensor": true
     }
   },
   "sequence": {
@@ -79,7 +83,8 @@
       "$lsl-bridge.components.lslSetup",
       "restBaseline",
       "barChartTask",
-      "scatterTask"
+      "scatterTask",
+      "$lsl-bridge.components.lslWrapUp"
     ]
   },
   "importedLibraries": [

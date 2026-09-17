@@ -27,6 +27,7 @@ import { ScreenRecordingRejection } from './interface/ScreenRecordingRejection';
 import { ReplayContext, useReplay } from '../store/hooks/useReplay';
 import { LslContext, useLsl, useLslTrialMarkers } from '../store/hooks/useLsl';
 import { LslPendingWindows } from './interface/LslPendingWindows';
+import { useLslRecordsCurrentComponent } from '../store/hooks/useLslConfig';
 import { useLslPersistence } from '../store/hooks/useLslPersistence';
 import { DeviceWarning } from './interface/DeviceWarning';
 import { handleBeforeUnload, shouldConfirmTabClose } from '../utils/closeTabConfirmation';
@@ -61,7 +62,7 @@ export function StepRenderer() {
   // Publishes trial boundaries onto the LSL network, so a sensor recording
   // shares this study's task structure on a common clock.
   const lsl = useLsl();
-  useLslTrialMarkers(lsl, useCurrentIdentifier());
+  useLslTrialMarkers(lsl, useCurrentIdentifier(), useLslRecordsCurrentComponent());
   useLslPersistence(lsl);
 
   const { isRejected: isScreenRecordingUserRejected } = screenRecording;

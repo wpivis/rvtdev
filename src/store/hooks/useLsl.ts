@@ -286,7 +286,11 @@ export function useLsl(): LslState {
  * trial is bounded the same way however it was left — next, previous, or a jump
  * from the study browser.
  */
-export function useLslTrialMarkers(lsl: LslState, identifier: string | undefined): void {
+export function useLslTrialMarkers(
+  lsl: LslState,
+  identifier: string | undefined,
+  isRecorded: boolean,
+): void {
   // The trial we have an open trialStart for, so a reconnect or an unrelated
   // re-render cannot emit a duplicate start for the same trial.
   const openTrial = useRef<string | null>(null);
@@ -299,12 +303,18 @@ export function useLslTrialMarkers(lsl: LslState, identifier: string | undefined
     if (openTrial.current === identifier) {
       return;
     }
+    // Always close an open trial, even when moving to a component that is not
+    // recorded — otherwise the last task of a study would never be bounded.
     if (openTrial.current) {
       sendMarker('trialStop', openTrial.current);
+      openTrial.current = null;
+    }
+    if (!isRecorded) {
+      return;
     }
     sendMarker('trialStart', identifier);
     openTrial.current = identifier;
-  }, [enabled, bridgeConnected, identifier, sendMarker]);
+  }, [enabled, bridgeConnected, identifier, isRecorded, sendMarker]);
 
   useEffect(() => {
     // Close the final trial on teardown, so the last window is still cut.

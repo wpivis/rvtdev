@@ -266,14 +266,14 @@ describe('useLslTrialMarkers', () => {
 
   test('opens a trial when the identifier appears', () => {
     const lsl = makeLsl();
-    renderHook(({ id }) => useLslTrialMarkers(lsl, id), { initialProps: { id: 'intro_0' } });
+    renderHook(({ id }) => useLslTrialMarkers(lsl, id, true), { initialProps: { id: 'intro_0' } });
     expect(lsl.sendMarker).toHaveBeenCalledWith('trialStart', 'intro_0');
   });
 
   test('closes the previous trial before opening the next', () => {
     const lsl = makeLsl();
     const { rerender } = renderHook(
-      ({ id }) => useLslTrialMarkers(lsl, id),
+      ({ id }) => useLslTrialMarkers(lsl, id, true),
       { initialProps: { id: 'intro_0' } },
     );
     rerender({ id: 'task_1' });
@@ -287,7 +287,7 @@ describe('useLslTrialMarkers', () => {
   test('a re-render on the same trial does not emit a duplicate start', () => {
     const lsl = makeLsl();
     const { rerender } = renderHook(
-      ({ id }) => useLslTrialMarkers(lsl, id),
+      ({ id }) => useLslTrialMarkers(lsl, id, true),
       { initialProps: { id: 'intro_0' } },
     );
     rerender({ id: 'intro_0' });
@@ -298,7 +298,7 @@ describe('useLslTrialMarkers', () => {
   test('closes the open trial on unmount, so the last window is still cut', () => {
     const lsl = makeLsl();
     const { unmount } = renderHook(
-      ({ id }) => useLslTrialMarkers(lsl, id),
+      ({ id }) => useLslTrialMarkers(lsl, id, true),
       { initialProps: { id: 'task_1' } },
     );
     unmount();
@@ -307,13 +307,34 @@ describe('useLslTrialMarkers', () => {
 
   test('emits nothing while the bridge is unreachable', () => {
     const lsl = makeLsl({ bridgeConnected: false });
-    renderHook(() => useLslTrialMarkers(lsl, 'intro_0'));
+    renderHook(() => useLslTrialMarkers(lsl, 'intro_0', true));
     expect(lsl.sendMarker).not.toHaveBeenCalled();
+  });
+
+  test('a component that is not recorded emits no markers', () => {
+    const lsl = makeLsl();
+    renderHook(() => useLslTrialMarkers(lsl, 'intro_0', false));
+    expect(lsl.sendMarker).not.toHaveBeenCalled();
+  });
+
+  test('moving to an unrecorded component still closes the open trial', () => {
+    // Otherwise the last task of a study would never be bounded, and its
+    // window would never be cut.
+    const lsl = makeLsl();
+    const { rerender } = renderHook(
+      ({ id, rec }) => useLslTrialMarkers(lsl, id, rec),
+      { initialProps: { id: 'task_1', rec: true } },
+    );
+    rerender({ id: 'debrief_2', rec: false });
+    expect(vi.mocked(lsl.sendMarker).mock.calls).toEqual([
+      ['trialStart', 'task_1'],
+      ['trialStop', 'task_1'],
+    ]);
   });
 
   test('emits nothing when the bridge is not enabled', () => {
     const lsl = makeLsl({ enabled: false });
-    renderHook(() => useLslTrialMarkers(lsl, 'intro_0'));
+    renderHook(() => useLslTrialMarkers(lsl, 'intro_0', true));
     expect(lsl.sendMarker).not.toHaveBeenCalled();
   });
 });

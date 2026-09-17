@@ -19,6 +19,21 @@
           "prompt": "LSL bridge ready"
         }
       ]
+    },
+    "lslWrapUp": {
+      "description": "Hold the participant while the final sensor windows arrive",
+      "type": "react-component",
+      "path": "libraries/lsl-bridge/assets/LslWrapUp.tsx",
+      "nextButtonLocation": "belowStimulus",
+      "nextButtonText": "Continue",
+      "response": [
+        {
+          "hidden": true,
+          "type": "reactive",
+          "id": "lslWrapUpComplete",
+          "prompt": "Sensor data saved"
+        }
+      ]
     }
   },
   "sequences": {}

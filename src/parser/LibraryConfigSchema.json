@@ -180,6 +180,10 @@
             "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
             "type": "boolean"
           },
+          "recordSensor": {
+            "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
+            "type": "boolean"
+          },
           "response": {
             "description": "The responses to the component",
             "items": {
@@ -1020,6 +1024,10 @@
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
           "type": "boolean"
         },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
+          "type": "boolean"
+        },
         "response": {
           "description": "The responses to the component",
           "items": {
@@ -1337,6 +1345,10 @@
         },
         "recordScreen": {
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
+          "type": "boolean"
+        },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
           "type": "boolean"
         },
         "response": {
@@ -1831,6 +1843,10 @@
         },
         "recordScreen": {
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
+          "type": "boolean"
+        },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
           "type": "boolean"
         },
         "response": {
@@ -2441,6 +2457,10 @@
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
           "type": "boolean"
         },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
+          "type": "boolean"
+        },
         "response": {
           "description": "The responses to the component",
           "items": {
@@ -2874,6 +2894,10 @@
         },
         "recordScreen": {
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
+          "type": "boolean"
+        },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
           "type": "boolean"
         },
         "response": {
@@ -3689,6 +3713,10 @@
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
           "type": "boolean"
         },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
+          "type": "boolean"
+        },
         "response": {
           "description": "The responses to the component",
           "items": {
@@ -3862,6 +3890,10 @@
         },
         "recordScreen": {
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
+          "type": "boolean"
+        },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
           "type": "boolean"
         },
         "response": {
@@ -4043,6 +4075,10 @@
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
           "type": "boolean"
         },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
+          "type": "boolean"
+        },
         "response": {
           "description": "The responses to the component",
           "items": {
@@ -4221,6 +4257,10 @@
         },
         "recordScreen": {
           "description": "Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started.",
+          "type": "boolean"
+        },
+        "recordSensor": {
+          "description": "Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record.",
           "type": "boolean"
         },
         "response": {

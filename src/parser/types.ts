@@ -274,6 +274,8 @@ export interface LslBridgeConfig {
   port?: number;
   /** The LSL stream type to attach to, for example "NIRS" for fNIRS or "EEG". Defaults to NIRS. */
   sensorType?: string;
+  /** Whether components are recorded as trials by default. Defaults to false: instruction, setup and debrief screens are not tasks, and recording them produces windows that mean nothing. Turn it on per component with `recordSensor`, or set it here and turn it off on the components that are not tasks. */
+  recordSensor?: boolean;
   /** Seconds of signal to include before each task onset in the per-task window. Defaults to 5. */
   leadIn?: number;
   /** Seconds of signal to include after each task ends. Defaults to 15. Haemodynamic responses peak around 5 seconds after onset and wash out over roughly 20, so a window clipped at the task boundary would attribute the tail of one task's response to the next. Leave a rest period of at least this length between tasks in the sequence so consecutive windows do not overlap. */
@@ -1113,6 +1115,8 @@ export interface BaseIndividualComponent {
   clickToRecord?: boolean;
   /** Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started. */
   recordScreen?: boolean;
+  /** Whether this component is recorded as a trial on the LSL network. If present, overrides `recordSensor` on `uiConfig.lslBridge`. Only components with this enabled emit trial markers and receive a sensor window, so instruction and debrief screens stay out of the record. */
+  recordSensor?: boolean;
   /** Whether to prepend questions with their index (+ 1). This should only be used when all questions are in the same location, e.g. all are in the side bar. If present, will override the enumeration of questions setting in the uiConfig. */
   enumerateQuestions?: boolean;
   /** Whether to show the response dividers. If present, will override the response dividers setting in the uiConfig. */

@@ -54,6 +54,68 @@ windowing all lined up. A flat trace means something upstream is broken.
 Swapping in a real NIRSport2 means pointing Aurora's LSL export at the network
 and stopping the simulator. Nothing on the reVISit side changes.
 
+## What a study has to look like
+
+The bridge is only half of this. A study that records sensor data has a shape,
+and getting it wrong is how windows go missing:
+
+```json
+"uiConfig": {
+  "lslBridge": { "enabled": true, "recordSensor": false, "leadIn": 5, "leadOut": 15 }
+},
+"components": {
+  "barChartTask": { "recordSensor": true, ... }
+},
+"sequence": { "components": [
+  "introduction",
+  "$lsl-bridge.components.lslSetup",     // verifies the bridge before anything is recorded
+  "barChartTask",                        // recordSensor: true
+  "$lsl-bridge.components.lslWrapUp"     // waits for the last windows
+]}
+```
+
+Three rules, each of which was a bug before it was a rule:
+
+1. **Only tasks set `recordSensor`.** Instruction, setup and debrief screens are
+   not tasks. Recording them produces windows that mean nothing, and anything
+   before `lslSetup` is recorded before the sensor has been verified at all.
+2. **`lslSetup` goes before the first recorded component.** It is the only thing
+   that checks the bridge is up and the stream is flowing.
+3. **`lslWrapUp` goes at the end, before `end`.** A window is cut `leadOut`
+   seconds after its task finishes, so the last windows of a study land after
+   the participant has answered everything. Without this screen they navigate
+   away and those recordings are lost. The screen blocks until they arrive.
+
+## Running it, and what to restart
+
+Three processes. They are independent — restart only what changed:
+
+| You changed | Restart |
+| --- | --- |
+| anything under `tools/lsl-bridge/*.py` | the bridge and the simulator |
+| anything under `src/` or `public/` | nothing; Vite hot-reloads, but **reload the browser tab** |
+| a study `config.json` | reload the browser tab |
+
+```bash
+yarn install && yarn serve                       # terminal 1, the app
+cd tools/lsl-bridge
+python3 revisit_lsl_bridge.py                    # terminal 2, the bridge
+python3 sim_fnirs.py                             # terminal 3, the fake sensor
+```
+
+Then open `http://localhost:8080/demo-fnirs-lsl`.
+
+A session that produced complete data looks like this:
+
+* the setup screen shows three green checks before you can start
+* the header badge reads **Signal connected** during the tasks
+* the badge reads **Saving N traces…** for a few seconds after the last task
+* the wrap-up screen reports **All sensor data saved** before you continue
+
+If you open the analysis view before that last point, the tasks whose windows
+had not yet arrived will have no trace. That is not a failure of the recording;
+it is the lead-out still running.
+
 ## Tests
 
 ```bash

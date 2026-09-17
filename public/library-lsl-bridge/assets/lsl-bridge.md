@@ -15,6 +15,7 @@ Link: [https://labstreaminglayer.org/](https://labstreaminglayer.org/)
 ## Available Components
 
 - lslSetup
+- lslWrapUp
 
 ## Available Sequences
 
