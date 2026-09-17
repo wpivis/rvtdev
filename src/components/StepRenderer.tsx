@@ -26,6 +26,7 @@ import { RecordingContext, useRecording } from '../store/hooks/useRecording';
 import { ScreenRecordingRejection } from './interface/ScreenRecordingRejection';
 import { ReplayContext, useReplay } from '../store/hooks/useReplay';
 import { LslContext, useLsl, useLslTrialMarkers } from '../store/hooks/useLsl';
+import { useLslPersistence } from '../store/hooks/useLslPersistence';
 import { DeviceWarning } from './interface/DeviceWarning';
 import { handleBeforeUnload, shouldConfirmTabClose } from '../utils/closeTabConfirmation';
 import { useStorageEngine } from '../storage/storageEngineHooks';
@@ -60,6 +61,7 @@ export function StepRenderer() {
   // shares this study's task structure on a common clock.
   const lsl = useLsl();
   useLslTrialMarkers(lsl, useCurrentIdentifier());
+  useLslPersistence(lsl);
 
   const { isRejected: isScreenRecordingUserRejected } = screenRecording;
 

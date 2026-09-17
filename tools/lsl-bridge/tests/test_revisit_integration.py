@@ -16,6 +16,35 @@ import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parents[1]
+LEAD_OUT = 4
+
+# localforage keeps its values in IndexedDB; read the keys back to prove the
+# sensor windows were actually written rather than merely received.
+STORED_KEYS_JS = """
+async () => {
+  const dbs = (await indexedDB.databases?.()) || [{ name: 'localforage' }];
+  const keys = [];
+  for (const { name } of dbs) {
+    if (!name) continue;
+    const db = await new Promise((res) => {
+      const r = indexedDB.open(name);
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => res(null);
+    });
+    if (!db) continue;
+    for (const store of Array.from(db.objectStoreNames)) {
+      const got = await new Promise((res) => {
+        const r = db.transaction(store, 'readonly').objectStore(store).getAllKeys();
+        r.onsuccess = () => res(r.result || []);
+        r.onerror = () => res([]);
+      });
+      keys.push(...got.map(String));
+    }
+    db.close();
+  }
+  return keys;
+}
+"""
 CHROME = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
 STUDY_URL = "http://localhost:8080/demo-fnirs-lsl"
 
@@ -50,9 +79,10 @@ async def drive_study() -> list:
         await page.goto(STUDY_URL, wait_until="networkidle", timeout=90000)
         await page.wait_for_timeout(3000)
 
-        # Walk the sequence. Each click advances one component; the study is
-        # introduction -> restBaseline -> barChartTask -> scatterTask.
-        for step in range(3):
+        # Walk the sequence: introduction -> lslSetup -> restBaseline ->
+        # barChartTask -> scatterTask. The setup gate keeps Continue disabled
+        # until the bridge reports a healthy stream, so each click waits for it.
+        for step in range(4):
             await page.wait_for_timeout(2500)
             radios = page.locator("input[type=radio]")
             if await radios.count():
@@ -61,18 +91,29 @@ async def drive_study() -> list:
             # Exact match matters: the dev Study Browser also renders a
             # "Next Participant" button, and clicking that restarts the study.
             nxt = page.get_by_role("button", name="Next", exact=True)
-            if await nxt.count() == 0:
-                console.append(f"no Next button at step {step}")
+            cont = page.get_by_role("button", name="Continue", exact=True)
+            button = cont if await cont.count() else nxt
+            if await button.count() == 0:
+                console.append(f"no advance button at step {step}")
                 break
-            await nxt.first.click()
-        await page.wait_for_timeout(2500)
+            try:
+                await button.first.wait_for(state="visible", timeout=20000)
+                await button.first.click(timeout=20000)
+            except Exception as exc:  # noqa: BLE001 - reported, not swallowed
+                console.append(f"could not advance at step {step}: {exc}")
+                break
+
+        # Windows are cut lead_out seconds after a task ends, so the page has to
+        # stay open past the last boundary for the writes to happen at all.
+        await page.wait_for_timeout((LEAD_OUT + 6) * 1000)
+        stored = await page.evaluate(STORED_KEYS_JS)
         await browser.close()
-        return console
+        return console, stored
 
 
 async def main() -> int:
     bridge = subprocess.Popen(
-        [sys.executable, "revisit_lsl_bridge.py", "--lead-out", "6", "--lead-in", "5"],
+        [sys.executable, "revisit_lsl_bridge.py", "--lead-out", str(LEAD_OUT), "--lead-in", "5"],
         cwd=HERE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     sim = subprocess.Popen(
         [sys.executable, "sim_fnirs.py", "--pairs", "4", "--rate", "10"],
@@ -81,8 +122,8 @@ async def main() -> int:
     try:
         await asyncio.sleep(5)
         loop = asyncio.get_running_loop()
-        collector = loop.run_in_executor(None, collect_markers, 45.0, markers)
-        console = await drive_study()
+        collector = loop.run_in_executor(None, collect_markers, 60.0, markers)
+        console, stored = await drive_study()
         await collector
 
         errors = [c for c in console if c.startswith("pageerror")]
@@ -112,10 +153,19 @@ async def main() -> int:
 
         # Task names must name real components, not indices.
         joined = " ".join(starts)
-        for component in ("introduction", "restBaseline", "barChartTask"):
+        for component in ("introduction", "lslSetup", "restBaseline", "barChartTask"):
             assert component in joined, f"{component!r} missing from {starts}"
 
-        print("\nPASS reVISit trials reach the LSL network with study and participant identity")
+        sensor_keys = [k for k in stored if "/sensor/" in k]
+        print(f"  sensor windows written to storage: {len(sensor_keys)}")
+        for k in sensor_keys:
+            print(f"    {k}")
+        assert sensor_keys, (
+            "no sensor window reached storage; "
+            f"saw {len(stored)} keys, e.g. {stored[:5]}"
+        )
+
+        print("\nPASS reVISit trials reach the LSL network, and windows reach storage")
         return 0
     finally:
         for proc in (sim, bridge):

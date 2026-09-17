@@ -159,6 +159,7 @@ vi.mock('../../storage/storageEngineHooks', () => ({
 
 vi.mock('../../routes/utils', () => ({
   useCurrentComponent: () => 'intro',
+  useCurrentIdentifier: () => 'intro_0',
 }));
 
 vi.mock('../../utils/handleComponentInheritance', () => ({

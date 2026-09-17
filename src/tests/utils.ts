@@ -81,6 +81,8 @@ class TestStorageEngine extends StorageEngine {
 
   protected _getScreenRecordingUrl = vi.fn(async () => null);
 
+  protected _getSensorWindowUrl = vi.fn(async () => null);
+
   protected _testingReset = vi.fn(async () => { });
 
   protected _directoryExists = vi.fn(async () => false);

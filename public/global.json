@@ -49,6 +49,7 @@
     "library-umux-lite",
     "library-virtual-chinrest",
     "library-vlat",
+    "library-lsl-bridge",
     "test-audio",
     "test-device-restriction",
     "test-library",
@@ -260,6 +261,9 @@
     },
     "demo-fnirs-lsl": {
       "path": "demo-fnirs-lsl/config.json"
+    },
+    "library-lsl-bridge": {
+      "path": "library-lsl-bridge/config.json"
     }
   }
 }

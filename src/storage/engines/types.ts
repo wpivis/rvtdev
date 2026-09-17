@@ -158,6 +158,26 @@ type ProgressDataWrite = {
   progressData: ProgressData;
 };
 
+/**
+ * Every per-study subdirectory that must travel with a study: copied when a
+ * snapshot is taken or restored, and removed when a snapshot is deleted.
+ *
+ * These three operations previously each carried their own hardcoded list, so a
+ * new asset kind was silently omitted from all of them. A prefix missing from
+ * the delete path survives participant deletion, which is a data-retention
+ * problem rather than a tidiness one, so new asset kinds belong here and
+ * nowhere else.
+ */
+export const STUDY_SUBDIRECTORIES = [
+  'configs',
+  'participants',
+  'audio',
+  'screenRecording',
+  'provenance',
+  // Per-task sensor windows captured through the LSL bridge.
+  'sensor',
+] as const;
+
 export abstract class StorageEngine {
   protected engine: 'localStorage' | 'supabase' | 'firebase';
 
@@ -309,6 +329,9 @@ export abstract class StorageEngine {
 
   // Gets the screen recording URL for the given task and participantId. This method is used to fetch the screen recording video file from the storage engine.
   protected abstract _getScreenRecordingUrl(task: string, participantId?: string): Promise<string | null>;
+
+  /** Resolves the stored sensor window for a task, or null when none was saved. */
+  protected abstract _getSensorWindowUrl(task: string, participantId?: string): Promise<string | null>;
 
   // Gets the transcript URL for the given task and participantId. (Optional - not all storage engines need to implement this, only if they generate transcripts).
   protected _getTranscriptUrl?(task: string, participantId?: string): Promise<string | null>;
@@ -1738,6 +1761,55 @@ export abstract class StorageEngine {
     });
   }
 
+  /**
+   * Saves a per-task sensor window captured through the LSL bridge.
+   *
+   * Stored as its own asset rather than inside the answer document: a trace can
+   * run to thousands of samples, which would push the answer past the document
+   * size limits the storage backends impose. The raw stream stays with the
+   * lab's own recording; this is the slice reVISit needs to draw a trace.
+   */
+  async saveSensorWindow(
+    window: object,
+    taskName: string,
+  ) {
+    return this.trackAssetOperation(`sensor/${taskName}`, async () => {
+      if (this.studyId === undefined) {
+        throw new Error('Study ID is not set');
+      }
+      const modes = await this.getModes(this.studyId);
+      if (!modes.dataCollectionEnabled) {
+        throw new Error('Data collection is disabled for this study');
+      }
+      const blob = new Blob([JSON.stringify(window)], { type: 'application/json' });
+      return this.saveAsset('sensor', blob, taskName);
+    });
+  }
+
+  // Gets a previously saved sensor window for a task, or null if there is none.
+  async getSensorWindow(
+    task: string,
+    participantId: string,
+  ): Promise<object | null> {
+    const url = await this._getSensorWindowUrl(task, participantId);
+    if (!url) {
+      return null;
+    }
+    try {
+      // Works for both the object URLs the local engines hand back and the
+      // download URLs Firebase returns.
+      const response = await fetch(url);
+      if (!response.ok) {
+        return null;
+      }
+      return await response.json();
+    } catch {
+      // A missing or corrupt window must not take down the analysis view.
+      console.warn(`Could not read the sensor window for ${task}`);
+      return null;
+    }
+  }
+
   // Gets the screen recording for a specific task and participantId.
   async getScreenRecording(
     task: string,
@@ -1842,11 +1914,11 @@ export abstract class StorageEngine {
     if (this.getEngine() === 'localStorage') {
       await this._copyDirectory(`${sourceName}/`, `${targetName}/`);
     } else {
-      await this._copyDirectory(`${sourceName}/configs`, `${targetName}/configs`);
-      await this._copyDirectory(`${sourceName}/participants`, `${targetName}/participants`);
-      await this._copyDirectory(`${sourceName}/audio`, `${targetName}/audio`);
-      await this._copyDirectory(`${sourceName}/screenRecording`, `${targetName}/screenRecording`);
-      await this._copyDirectory(`${sourceName}/provenance`, `${targetName}/provenance`);
+      for (const dir of STUDY_SUBDIRECTORIES) {
+        // Sequential on purpose: the storage engines rate-limit bulk copies.
+        // eslint-disable-next-line no-await-in-loop
+        await this._copyDirectory(`${sourceName}/${dir}`, `${targetName}/${dir}`);
+      }
       await this._copyDirectory(sourceName, targetName);
       await this._copyRealtimeData(sourceName, targetName);
     }
@@ -1890,11 +1962,10 @@ export abstract class StorageEngine {
       if (this.getEngine() === 'localStorage') {
         await this._deleteDirectory(`${deletionTarget}/`);
       } else {
-        await this._deleteDirectory(`${deletionTarget}/configs`);
-        await this._deleteDirectory(`${deletionTarget}/participants`);
-        await this._deleteDirectory(`${deletionTarget}/audio`);
-        await this._deleteDirectory(`${deletionTarget}/screenRecording`);
-        await this._deleteDirectory(`${deletionTarget}/provenance`);
+        for (const dir of STUDY_SUBDIRECTORIES) {
+          // eslint-disable-next-line no-await-in-loop
+          await this._deleteDirectory(`${deletionTarget}/${dir}`);
+        }
         await this._deleteDirectory(deletionTarget);
         await this._deleteRealtimeData(deletionTarget);
       }
@@ -1948,26 +2019,10 @@ export abstract class StorageEngine {
         });
       }
 
-      await this._copyDirectory(
-        `${snapshotName}/configs`,
-        `${originalName}/configs`,
-      );
-      await this._copyDirectory(
-        `${snapshotName}/participants`,
-        `${originalName}/participants`,
-      );
-      await this._copyDirectory(
-        `${snapshotName}/audio`,
-        `${originalName}/audio`,
-      );
-      await this._copyDirectory(
-        `${snapshotName}/screenRecording`,
-        `${originalName}/screenRecording`,
-      );
-      await this._copyDirectory(
-        `${snapshotName}/provenance`,
-        `${originalName}/provenance`,
-      );
+      for (const dir of STUDY_SUBDIRECTORIES) {
+        // eslint-disable-next-line no-await-in-loop
+        await this._copyDirectory(`${snapshotName}/${dir}`, `${originalName}/${dir}`);
+      }
       await this._copyDirectory(snapshotName, originalName);
       await this._copyRealtimeData(snapshotName, originalName);
       successNotifications.push({

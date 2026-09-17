@@ -76,9 +76,13 @@
     "order": "fixed",
     "components": [
       "introduction",
+      "$lsl-bridge.components.lslSetup",
       "restBaseline",
       "barChartTask",
       "scatterTask"
     ]
-  }
+  },
+  "importedLibraries": [
+    "lsl-bridge"
+  ]
 }

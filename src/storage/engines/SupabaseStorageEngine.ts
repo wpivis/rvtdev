@@ -530,6 +530,17 @@ export class SupabaseStorageEngine extends CloudStorageEngine {
     return audio ? URL.createObjectURL(audio) : null;
   }
 
+  protected async _getSensorWindowUrl(task: string, participantId?: string) {
+    await this.verifyStudyDatabase();
+    const id = participantId || this.currentParticipantId;
+    if (!id) {
+      throw new Error('Participant not initialized');
+    }
+
+    const blob = await this._getFromStorage(`/sensor/${id}`, task);
+    return blob ? URL.createObjectURL(blob) : null;
+  }
+
   protected async _getScreenRecordingUrl(task: string, participantId?: string) {
     await this.verifyStudyDatabase();
     // If participantId is not provided, use the current participant id

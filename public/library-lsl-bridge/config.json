@@ -1,0 +1,47 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/dev/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "LSL Bridge: Lab Streaming Layer Sensor Setup",
+    "version": "1.0.0",
+    "authors": [
+      "The reVISit Team"
+    ],
+    "date": "2026-09-17",
+    "description": "Example study using the lsl-bridge library. Requires the bridge process from tools/lsl-bridge to be running on this machine; without it the setup gate stays red, which is itself what the component is for.",
+    "organizations": [
+      "University of Utah",
+      "WPI"
+    ]
+  },
+  "uiConfig": {
+    "contactEmail": "contact@revisit.dev",
+    "logoPath": "revisitAssets/revisitLogoSquare.svg",
+    "withProgressBar": true,
+    "withSidebar": false,
+    "lslBridge": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8765,
+      "sensorType": "NIRS",
+      "leadIn": 5,
+      "leadOut": 15
+    }
+  },
+  "importedLibraries": [
+    "lsl-bridge"
+  ],
+  "components": {
+    "introduction": {
+      "type": "markdown",
+      "path": "library-lsl-bridge/assets/lsl-bridge.md",
+      "response": []
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": [
+      "introduction",
+      "$lsl-bridge.components.lslSetup"
+    ]
+  }
+}

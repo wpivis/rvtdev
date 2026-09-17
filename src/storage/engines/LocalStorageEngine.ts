@@ -262,6 +262,16 @@ export class LocalStorageEngine extends StorageEngine {
     return URL.createObjectURL(audioBlob);
   }
 
+  protected async _getSensorWindowUrl(task: string, participantId?: string) {
+    await this.verifyStudyDatabase();
+    if (this.studyId === undefined) {
+      throw new Error('Study ID is not set');
+    }
+    const blob = await this._getFromStorage(`sensor/${participantId || this.currentParticipantId}`, task);
+    // Absent is not an error here: a trial simply may not have a window.
+    return blob ? URL.createObjectURL(blob) : null;
+  }
+
   protected async _getScreenRecordingUrl(task: string, participantId?: string) {
     await this.verifyStudyDatabase();
     if (this.studyId === undefined) {

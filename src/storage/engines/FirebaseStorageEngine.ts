@@ -572,6 +572,22 @@ export class FirebaseStorageEngine extends CloudStorageEngine {
     }
   }
 
+  protected async _getSensorWindowUrl(
+    task: string,
+    participantId: string,
+  ): Promise<string | null> {
+    const storage = getStorage();
+    const sensorRef = ref(storage, `${this.collectionPrefix}${this.studyId}/sensor/${participantId}_${task}`);
+
+    try {
+      return await getDownloadURL(sensorRef);
+    } catch {
+      // A task with no sensor window is ordinary: the bridge may not have been
+      // running, or the stream may have dropped for that trial.
+      return null;
+    }
+  }
+
   protected async _getScreenRecordingUrl(
     task: string,
     participantId: string,

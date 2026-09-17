@@ -49,6 +49,7 @@ import {
   shouldWarnForDefaultSupabaseConfig,
 } from '../../utils/defaultStorageConfig';
 import { useIsAnalysis } from '../../store/hooks/useIsAnalysis';
+import { LslStatusIndicator } from './LslStatusIndicator';
 
 export function AppHeader({ developmentModeEnabled, dataCollectionEnabled }: { developmentModeEnabled: boolean; dataCollectionEnabled: boolean }) {
   const studyConfig = useStoreSelector((state) => state.config);
@@ -267,6 +268,7 @@ export function AppHeader({ developmentModeEnabled, dataCollectionEnabled }: { d
               </Tooltip>
             )}
             {!storageEngineFailedToConnect && !dataCollectionEnabled && <Tooltip multiline withArrow arrowSize={6} w={300} label="This is a demo version of the study, we’re not collecting any data."><Badge size="lg" color="orange">Demo Mode</Badge></Tooltip>}
+            <LslStatusIndicator />
             {hasUnmetDeviceRequirement && developmentModeEnabled && <Tooltip multiline withArrow arrowSize={6} w={420} label="Your device does not meet this study's requirements. You are still able to explore this study while in debug mode."><Badge size="lg" color="red">Device Requirement Not Met</Badge></Tooltip>}
             {studyConfig?.uiConfig.helpTextPath !== undefined && (
               <Button

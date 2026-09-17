@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/LibraryConfigSchema.json",
+  "description": "Setup gate for studies that stream sensor data (fNIRS, EEG, eye tracking, GSR) through a local Lab Streaming Layer bridge. Checks that the bridge is reachable, that a sensor stream has been found on the LSL network, and that samples are arriving at the expected rate, before letting the study begin. Requires uiConfig.lslBridge to be configured and the bridge process to be running on the machine presenting the study.",
+  "reference": "C. Kothe, S. Shirazi, T. Stenner, D. Medine, C. Boulay, M. I. Grivich, T. Mullen, A. Delorme, and S. Makeig, \"The Lab Streaming Layer for Synchronized Multimodal Recording,\" Imaging Neuroscience, vol. 3, 2025.",
+  "doi": "10.1162/IMAG.a.136",
+  "externalLink": "https://labstreaminglayer.org/",
+  "components": {
+    "lslSetup": {
+      "description": "Verify the LSL bridge and sensor stream before the study starts",
+      "type": "react-component",
+      "path": "libraries/lsl-bridge/assets/LslSetup.tsx",
+      "nextButtonLocation": "belowStimulus",
+      "nextButtonText": "Continue",
+      "response": [
+        {
+          "hidden": true,
+          "type": "reactive",
+          "id": "lslBridgeReady",
+          "prompt": "LSL bridge ready"
+        }
+      ]
+    }
+  },
+  "sequences": {}
+}

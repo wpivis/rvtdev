@@ -1,7 +1,6 @@
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
 } from 'react';
-import { useParams } from 'react-router';
 import { useStudyConfig } from './useStudyConfig';
 import { useIsAnalysis } from './useIsAnalysis';
 import { useStoreSelector } from '../store';
@@ -99,7 +98,9 @@ const RECONNECT_MAX_MS = 10_000;
 export function useLsl(): LslState {
   const studyConfig = useStudyConfig();
   const isAnalysis = useIsAnalysis();
-  const { studyId } = useParams();
+  // Read from the store rather than the router: both ids already live there,
+  // and it keeps this hook independent of routing context.
+  const studyId = useStoreSelector((state) => state.studyId);
   const participantId = useStoreSelector((state) => state.participantId);
 
   const config = studyConfig?.uiConfig?.lslBridge;
