@@ -8,7 +8,6 @@ import { StorageEngine } from '../../storage/engines/types';
 import { ThinkAloudFooter } from '../../analysis/individualStudy/thinkAloud/ThinkAloudFooter';
 import { useCurrentIdentifier } from '../../routes/utils';
 import { useStoreActions, useStoreDispatch } from '../../store/store';
-import { SensorTraceVis } from '../audioAnalysis/SensorTraceVis';
 import { LslWindow } from '../../store/hooks/useLsl';
 
 async function getAllParticipantsNames(storageEngine: StorageEngine | undefined) {
@@ -67,7 +66,7 @@ export function AnalysisFooter({ setHasAudio, setHasSensor }: {
 
   return (
     <ThinkAloudFooter
-      extraTrack={sensorWindow ? <SensorTraceVis window={sensorWindow} width={1200} /> : undefined}
+      sensorWindow={sensorWindow}
       storageEngine={storageEngine}
       setHasAudio={setHasAudio}
       studyId={studyId || ''}

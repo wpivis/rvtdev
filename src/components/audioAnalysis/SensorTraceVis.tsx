@@ -1,25 +1,20 @@
-import {
-  Box, Group, Text, Tooltip,
-} from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { Box, Group, Text } from '@mantine/core';
 import { useMemo } from 'react';
 import * as d3 from 'd3';
 import { LslWindow } from '../../store/hooks/useLsl';
 
 /**
- * Per-task sensor trace on the analysis timeline.
+ * Per-task sensor trace, drawn on the replay timeline's own scale.
  *
- * Deliberately labelled as unprocessed. This is the raw concentration change
- * the bridge captured for one trial: no baseline correction, no motion-artifact
- * rejection, no averaging across trials. A single-trial haemodynamic squiggle
- * looks meaningful and usually is not, so the chrome says so rather than
- * letting a smooth curve imply a result.
+ * Takes the x scale from AudioProvenanceVis rather than building its own, so
+ * the trace sits under the provenance track on one shared axis and the playhead
+ * crosses both. That scale is seconds from task start, which is the same unit
+ * the bridge reports window times in.
+ *
+ * Deliberately labelled unprocessed: no baseline correction, no motion-artifact
+ * rejection, no averaging across trials. A single-trial haemodynamic curve looks
+ * meaningful and usually is not.
  */
-
-const HEIGHT = 110;
-const MARGIN = {
-  top: 14, right: 12, bottom: 18, left: 44,
-};
 
 /** Mean across a set of channel indices, so 40 channels read as one trend. */
 function meanSeries(values: number[][], indices: number[]): number[] {
@@ -32,28 +27,35 @@ function meanSeries(values: number[][], indices: number[]): number[] {
   ));
 }
 
-export function SensorTraceVis({ window, width }: { window: LslWindow | null; width: number }) {
+export function SensorTraceVis({
+  window: sensorWindow,
+  xScale,
+  width,
+  height,
+}: {
+  window: LslWindow | null;
+  xScale: d3.ScaleLinear<number, number>;
+  width: number;
+  height: number;
+}) {
   const chart = useMemo(() => {
-    if (!window?.times?.length) {
+    if (!sensorWindow?.times?.length) {
       return null;
     }
-    const innerWidth = Math.max(width - MARGIN.left - MARGIN.right, 10);
-    const innerHeight = HEIGHT - MARGIN.top - MARGIN.bottom;
-
     // Chromophores are resolved from labels by the bridge, never by index.
-    const hbo = meanSeries(window.values, window.chromophores?.HbO ?? []);
-    const hbr = meanSeries(window.values, window.chromophores?.HbR ?? []);
+    const hbo = meanSeries(sensorWindow.values, sensorWindow.chromophores?.HbO ?? []);
+    const hbr = meanSeries(sensorWindow.values, sensorWindow.chromophores?.HbR ?? []);
     const series = [
       {
         key: 'HbO',
         data: hbo,
-        count: window.chromophores?.HbO?.length ?? 0,
+        count: sensorWindow.chromophores?.HbO?.length ?? 0,
         color: 'var(--mantine-color-red-6)',
       },
       {
         key: 'HbR',
         data: hbr,
-        count: window.chromophores?.HbR?.length ?? 0,
+        count: sensorWindow.chromophores?.HbR?.length ?? 0,
         color: 'var(--mantine-color-blue-6)',
       },
     ].filter((s) => s.data.length);
@@ -61,112 +63,103 @@ export function SensorTraceVis({ window, width }: { window: LslWindow | null; wi
       return null;
     }
 
-    const x = d3.scaleLinear()
-      .domain(d3.extent(window.times) as [number, number])
-      .range([0, innerWidth]);
-    const allValues = series.flatMap((s) => s.data);
+    // The shared scale only spans the task, so the lead-in and lead-out fall
+    // outside it. Clipping keeps every point aligned with the tracks above
+    // rather than piling the tails against the edges.
+    const [lo, hi] = xScale.domain();
+    const visible = sensorWindow.times
+      .map((t, i) => ({ t, i }))
+      .filter(({ t }) => t >= lo && t <= hi);
+    if (visible.length < 2) {
+      return null;
+    }
+
+    const inner = Math.max(height - 14, 8);
+    const allValues = series.flatMap((s) => visible.map(({ i }) => s.data[i]));
     const y = d3.scaleLinear()
       .domain(d3.extent(allValues) as [number, number])
       .nice()
-      .range([innerHeight, 0]);
+      .range([inner, 2]);
 
-    const line = (data: number[]) => d3.line<number>()
-      .x((_, i) => x(window.times[i]))
-      .y((v) => y(v))(data) ?? '';
+    const line = (data: number[]) => d3.line<{ t: number; i: number }>()
+      .x((d) => xScale(d.t))
+      .y((d) => y(data[d.i]))(visible) ?? '';
 
+    const hidden = sensorWindow.times.length - visible.length;
     return {
-      innerWidth, innerHeight, x, y, series, line,
+      inner, y, series, line, hidden,
     };
-  }, [window, width]);
+  }, [sensorWindow, xScale, height]);
 
-  if (!window || !chart) {
+  if (!sensorWindow || !chart) {
     return null;
   }
 
   const {
-    innerWidth, innerHeight, x, y, series, line,
+    inner, y, series, line, hidden,
   } = chart;
 
   return (
     <Box>
-      <Group gap={6} mb={2} pl={MARGIN.left} wrap="nowrap">
-        <Text size="xs" fw={600}>{window.streamName}</Text>
+      <Group gap={8} mb={2} mt={4} pl={8} wrap="nowrap">
+        <Text size="xs" fw={600}>{sensorWindow.streamName}</Text>
         {series.map((s) => (
           <Group key={s.key} gap={3} wrap="nowrap">
             <Box w={8} h={2} style={{ background: s.color }} />
             <Text size="xs" c="dimmed">{`${s.key} (mean of ${s.count})`}</Text>
           </Group>
         ))}
-        <Tooltip
-          multiline
-          w={320}
-          withArrow
-          label="Raw concentration change for this single trial: no baseline correction, no motion-artifact rejection, and no averaging across trials. Not an analysis result."
-        >
-          <Group gap={3} wrap="nowrap" style={{ cursor: 'help' }}>
-            <IconInfoCircle size={12} color="var(--mantine-color-dimmed)" />
-            <Text size="xs" c="dimmed">unprocessed</Text>
-          </Group>
-        </Tooltip>
-        {(window.truncatedStart || window.truncatedEnd) && (
-          <Text size="xs" c="orange">window truncated</Text>
+        <Text size="xs" c="dimmed">unprocessed</Text>
+        {hidden > 0 && (
+          <Text size="xs" c="orange">
+            {`${hidden} samples outside the replay window are not shown`}
+          </Text>
         )}
       </Group>
-
-      <svg width={width} height={HEIGHT}>
-        <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-          {/* Lead-in and lead-out are shaded: the response to this task is still
-              unfolding after the task itself has ended. */}
-          <rect
-            x={x(window.times[0])}
-            width={Math.max(x(window.taskStart) - x(window.times[0]), 0)}
-            y={0}
-            height={innerHeight}
-            fill="var(--mantine-color-gray-1)"
-          />
-          <rect
-            x={x(window.taskEnd)}
-            width={Math.max(x(window.times[window.times.length - 1]) - x(window.taskEnd), 0)}
-            y={0}
-            height={innerHeight}
-            fill="var(--mantine-color-gray-1)"
-          />
-
-          {y.ticks(3).map((t) => (
-            <g key={t} transform={`translate(0,${y(t)})`}>
-              <line x2={innerWidth} stroke="var(--mantine-color-gray-3)" strokeDasharray="2,2" />
-              <text x={-6} dy="0.32em" textAnchor="end" fontSize={9} fill="var(--mantine-color-dimmed)">{t}</text>
-            </g>
-          ))}
-
-          {series.map((s) => (
-            <path key={s.key} d={line(s.data)} fill="none" stroke={s.color} strokeWidth={1.5} />
-          ))}
-
-          {/* Task boundaries drawn inside the window rather than clipping it. */}
-          {[
-            { at: window.taskStart, label: 'task start' },
-            { at: window.taskEnd, label: 'task end' },
-          ].map((b) => (
-            <g key={b.label} transform={`translate(${x(b.at)},0)`}>
-              <line y2={innerHeight} stroke="var(--mantine-color-dark-4)" strokeWidth={1} />
-              <text y={-3} fontSize={9} textAnchor="middle" fill="var(--mantine-color-dimmed)">{b.label}</text>
-            </g>
-          ))}
-
-          {x.ticks(6).map((t) => (
-            <text
-              key={t}
-              x={x(t)}
-              y={innerHeight + 12}
-              fontSize={9}
-              textAnchor="middle"
-              fill="var(--mantine-color-dimmed)"
-            >
-              {`${t}s`}
-            </text>
-          ))}
-        </g>
+      <svg width={width} height={height} style={{ display: 'block' }}>
+        {y.ticks(2).map((t) => (
+          <g key={t} transform={`translate(0,${y(t)})`}>
+            <line x1={xScale.range()[0]} x2={xScale.range()[1]} stroke="var(--mantine-color-gray-3)" strokeDasharray="2,2" />
+            <text x={xScale.range()[0] - 4} dy="0.32em" textAnchor="end" fontSize={9} fill="var(--mantine-color-dimmed)">{t}</text>
+          </g>
+        ))}
+        {/* Everything outside the task is lead-in and lead-out: the response
+            still unfolding before and after the trial it belongs to. */}
+        <rect
+          x={xScale(xScale.domain()[0])}
+          width={Math.max(xScale(sensorWindow.taskStart) - xScale(xScale.domain()[0]), 0)}
+          y={0}
+          height={inner}
+          fill="var(--mantine-color-gray-2)"
+          opacity={0.55}
+        />
+        <rect
+          x={xScale(sensorWindow.taskEnd)}
+          width={Math.max(xScale(xScale.domain()[1]) - xScale(sensorWindow.taskEnd), 0)}
+          y={0}
+          height={inner}
+          fill="var(--mantine-color-gray-2)"
+          opacity={0.55}
+        />
+        {[
+          { at: sensorWindow.taskStart, label: 'task start' },
+          { at: sensorWindow.taskEnd, label: 'task end' },
+        ].map((b) => (
+          <g key={b.label} transform={`translate(${xScale(b.at)},0)`}>
+            <line y1={0} y2={inner} stroke="var(--mantine-color-dark-4)" strokeWidth={1} />
+            <text y={9} x={3} fontSize={9} fill="var(--mantine-color-dimmed)">{b.label}</text>
+          </g>
+        ))}
+        {series.map((s) => (
+          <path key={s.key} d={line(s.data)} fill="none" stroke={s.color} strokeWidth={1.5} />
+        ))}
+        <line
+          x1={xScale.range()[0]}
+          x2={xScale.range()[1]}
+          y1={inner}
+          y2={inner}
+          stroke="var(--mantine-color-gray-4)"
+        />
       </svg>
     </Box>
   );

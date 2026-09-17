@@ -128,6 +128,23 @@ python3 tests/test_end_to_end.py     # marker → LSL → HRF → window → bro
 marker, and that HbR moves opposite to HbO. A structurally correct window over a
 nonsense signal passes every other check; this is the one that catches it.
 
+## On the analysis page
+
+The trace is a row inside the replay timeline, on the same x scale as the
+provenance track, with the playhead crossing both. So an event — a selection, a
+response — can be read against the signal at that moment.
+
+That scale is seconds from task start. A sensor window runs from a lead-in
+before the task to a lead-out after it, so the shared domain is widened to cover
+the whole window when one is present; events still land at their own times,
+across a narrower span of the row. The task itself is marked, and the lead-in
+and lead-out are shaded.
+
+The domain is **not** widened when the task also has audio: the waveform is
+rendered by WaveSurfer at full container width, independent of this scale, so
+widening would slide it out of step. For a task with both, the trace is clipped
+to the replay window and says how many samples that hides.
+
 ## Windowing, and why it is not clipped to the task
 
 The haemodynamic response peaks ~5 s after onset and washes out over ~20 s. A

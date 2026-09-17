@@ -18,6 +18,8 @@ import { useStorageEngine } from '../../storage/storageEngineHooks';
 import { TaskProvenanceTimeline } from './TaskProvenanceTimeline';
 import { useIsAnalysis } from '../../store/hooks/useIsAnalysis';
 import { Timer } from './Timer';
+import { SensorTraceVis } from './SensorTraceVis';
+import { LslWindow } from '../../store/hooks/useLsl';
 import { youtubeReadableDuration } from '../../utils/humanReadableDuration';
 import { ResponseBlockLocation, StoredAnswer } from '../../parser/types';
 import { useEvent } from '../../store/hooks/useEvent';
@@ -46,6 +48,7 @@ export function AudioProvenanceVis({
   context,
   saveProvenance,
   setHasAudio,
+  sensorWindow,
 }: {
   setTimeString: (time: string) => void;
   answers: Record<string, StoredAnswer>;
@@ -54,6 +57,8 @@ export function AudioProvenanceVis({
   context: 'audioAnalysis' | 'provenanceVis';
   saveProvenance: ((state: unknown) => void);
   setHasAudio: (b: boolean) => void;
+  /** Per-task sensor trace, drawn on this component's scale when present. */
+  sensorWindow?: LslWindow | null;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const routerLocation = useLocation();
@@ -348,10 +353,27 @@ export function AudioProvenanceVis({
     if (!answers[taskName]?.startTime || !answers[taskName]?.endTime) {
       return null;
     }
-    const scale = d3.scaleLinear([margin.left, width - margin.right]).domain([0, duration]).clamp(true);
+    // A sensor window runs from a lead-in before the task to a lead-out after
+    // it, because the response being measured outlasts the task that caused it.
+    // Widening the shared domain to cover it keeps the trace on the same axis as
+    // the provenance track instead of clipping away the part worth looking at;
+    // events still land at their own times, just across a narrower span.
+    //
+    // Not done when there is audio: the waveform is rendered by WaveSurfer at
+    // full container width, independent of this scale, so widening here would
+    // slide it out of step with everything else.
+    const canWiden = !!sensorWindow && !analysisHasAudio;
+    const domain: [number, number] = canWiden
+      ? [
+        Math.min(0, -(sensorWindow?.leadIn ?? 0)),
+        Math.max(duration, (sensorWindow?.taskEnd ?? 0) + (sensorWindow?.leadOut ?? 0)),
+      ]
+      : [0, duration];
+
+    const scale = d3.scaleLinear([margin.left, width - margin.right]).domain(domain).clamp(true);
 
     return scale;
-  }, [answers, taskName, duration, width]);
+  }, [answers, taskName, duration, width, sensorWindow, analysisHasAudio]);
 
   return (
     <Group wrap="nowrap" gap={0} mx={0}>
@@ -390,8 +412,22 @@ export function AudioProvenanceVis({
             />
           ) : null}
 
+        {xScale && sensorWindow ? (
+          <SensorTraceVis
+            window={sensorWindow}
+            xScale={xScale}
+            width={width}
+            height={56}
+          />
+        ) : null}
+
         {xScale ? (
-          <Timer height={(analysisHasAudio ? 49 : 0) + 25} width={width} xScale={xScale} debounceUpdateTimer={_setPlayTime} />
+          <Timer
+            height={(analysisHasAudio ? 49 : 0) + 25 + (sensorWindow ? 56 + 18 : 0)}
+            width={width}
+            xScale={xScale}
+            debounceUpdateTimer={_setPlayTime}
+          />
         ) : null}
       </Stack>
     </Group>
