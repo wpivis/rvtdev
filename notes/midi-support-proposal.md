@@ -351,9 +351,21 @@ device half accurately because it waits for a note.
   same gap the gamepad noted. It matters slightly more here: twelve hue-coded
   categories are more than color alone can carry reliably, and a legend is the
   cheap fix.
-- There is no MIDI-specific analysis view. A real piano-roll view — note number
+- There is no MIDI-specific analysis *view*. A real piano-roll view — note number
   against time, with velocity as opacity — would be a genuinely useful addition
   and is close to what `MidiKeyboard` already draws.
+- Audible replay now exists (`MidiReplayAudio`), and building it turned up a
+  structural point worth recording. A study with `recordScreen` set replays as a
+  **video**: `ComponentController` returns `ScreenRecordingReplay` instead of
+  mounting the stimulus, so the stimulus's own provenance-driven replay path never
+  runs in exactly the case where a MIDI study is most interesting to review.
+  Anything that must work during replay therefore belongs in the analysis chrome,
+  not in the stimulus. The playback component reads the trial's stored
+  `midinoteon` / `midinoteoff` entries, pairs them to recover held durations, and
+  sounds them against `replayEvent`'s `timeupdate` clock (epoch ms =
+  `answer.startTime + t * 1000`), with velocity as loudness. The stimulus's replay
+  path was separately fixed to light the played key from `provenanceState`, which
+  covers studies that do not record the screen.
 - Velocity is currently summarised as a mean absolute error against a target. A
   study interested in dynamics would want the distribution, not the mean.
 

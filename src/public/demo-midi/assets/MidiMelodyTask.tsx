@@ -365,12 +365,21 @@ function MidiMelodyTask({
   }, [connected, isReplay, promptAt]);
 
   // During replay the analysis view drives the scene through provenanceState.
+  //
+  // This path runs only when the study is *not* replaying a screen recording --
+  // with `recordScreen` set, `ComponentController` renders the recording instead
+  // and this component is never mounted. Note that `useMidi` is disabled here, so
+  // the live handlers never fire and the keyboard has to be driven from the
+  // provenance state directly or it would show nothing being played.
   useEffect(() => {
     if (!provenanceState) {
       return;
     }
     taskRef.current = provenanceState;
     setTask(provenanceState);
+    setActiveNotes(provenanceState.lastNote === null
+      ? new Map()
+      : new Map([[provenanceState.lastNote, provenanceState.lastVelocity ?? 0]]));
   }, [provenanceState]);
 
   const { promptNote } = task;

@@ -30,6 +30,7 @@ import { parseTrialOrder } from '../../../utils/parseTrialOrder';
 import { PREFIX } from '../../../utils/Prefix';
 import { handleTaskAudio, handleTaskScreenRecording } from '../../../utils/handleDownloadFiles';
 import { ParticipantRejectModal } from '../ParticipantRejectModal';
+import { MidiReplayAudio } from '../../../components/audioAnalysis/MidiReplayAudio';
 import { StorageEngine } from '../../../storage/engines/types';
 import { useReplayContext } from '../../../store/hooks/useReplay';
 import {
@@ -459,6 +460,9 @@ export function ThinkAloudFooter({
                 <Stack gap="xs" />
               </Popover.Dropdown>
             </Popover>
+
+            {/* Renders nothing unless the trial actually recorded MIDI notes. */}
+            <MidiReplayAudio answer={participant?.answers[currentTrial]} />
 
           </Group>
 

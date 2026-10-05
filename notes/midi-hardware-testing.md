@@ -151,6 +151,19 @@ order you played them, so the trial reads as a **piano roll**. Specifically:
 Scrub the replay. The screen recording should show the prompts advancing, and the
 provenance nodes should line up with the notes.
 
+**Then hear it.** Next to the play and speed controls at the bottom there is a
+speaker button, which appears only for trials that actually recorded notes. Click
+it (the click is what unlocks audio -- browsers start an `AudioContext` suspended)
+and press play. You should hear the melody back as you played it: the same order,
+the same rhythm, and softer notes quieter than hard ones, because velocity drives
+the loudness. Notes are sounded with their recorded held duration, so a staccato
+run sounds short and a held chord sounds held.
+
+Two deliberate limits: scrubbing does not sound notes, only playback does, and a
+seek larger than a second does not dump the notes it skipped. It is a plain
+synthesised tone rather than a piano sample -- the point is to hear the
+performance, not the instrument.
+
 ## Also worth trying
 
 - **Unplug the piano mid-trial.** A "Waiting for a MIDI instrument" overlay should
