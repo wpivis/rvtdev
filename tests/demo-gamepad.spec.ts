@@ -176,7 +176,7 @@ test.describe('Gamepad stimulus with provenance and screen recording', () => {
   // The fake display stream these tests rely on (canvas.captureStream piped through
   // MediaRecorder) has not been verified on WebKit, and gamepad support there is
   // untested on real hardware too. Skipping rather than shipping a red suite -- see
-  // docs/gamepad-support-proposal.md for the compatibility work this is waiting on.
+  // notes/gamepad-support-proposal.md for the compatibility work this is waiting on.
   test.skip(({ browserName }) => browserName === 'webkit', 'Gamepad + screen capture is unverified on WebKit.');
 
   test.beforeEach(async ({ page }) => {
