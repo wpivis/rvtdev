@@ -220,3 +220,69 @@ If this does go upstream, it splits into reviewable pieces cleanly:
 
 Steps 1 and 3 are independently useful and carry almost no risk; the explicit color map in
 `getColorForKey` is generic and any study with meaningful action colors can use it.
+
+---
+
+# Upstream outcome
+
+This went upstream as [revisit-studies/study#1488](https://github.com/revisit-studies/study/pull/1488),
+based on `dev` from a `lane/gamepad-input` branch, and was **merged by Jack Wilburn on
+2026-09-29** — 21 files, +1775/-9, approved with "passes unit tests, lint, preview
+deployment, and all Chromium shards."
+
+Two things changed before it merged, and both are worth carrying into any other input
+modality.
+
+## Gap 1 of this document was closed first
+
+`captureGamepad` landed as an opt-in boolean on `uiConfig` and the individual component,
+defaulting to false and resolved the same way `windowEventDebounceTime` is, with a
+regression test that loads a study which does *not* opt in and asserts an attached
+controller produces no events. The unconditional polling loop never reached review.
+
+## Four bugs the review found
+
+Three were raised by the repo's automated Codex reviewer; the fourth Jack caught himself.
+All four were in code written here, and the fork's `claude/gamepad-demo` branch still
+carries the unfixed versions.
+
+**The initial answer was never published.** The stimulus only called `setAnswer` after a
+successful button press, while its four reactive responses defaulted to required. The trial
+therefore started invalid, and a participant without a working controller was stuck on it —
+the exact opposite of what a comment in that file claimed. Fixed by publishing a valid
+zero-valued answer on mount, plus an end-to-end test that advances past the trial without
+ever connecting a device.
+
+**The axis throttle discarded samples permanently.** `useGamepad` advanced its
+`previousAxes` baseline *before* calling `onAxes`, while the leading-edge throttle in
+`StepRenderer` could drop that call. The sample was then unrecoverable: a quick flick
+recorded nothing, and a stick returning to rest inside the throttle window left the stored
+stream showing it held indefinitely. Fixed with a leading-and-trailing throttle that keeps a
+pending sample, prefers whichever is further from the last recorded position, and exposes
+`flushPending` on the windowEvents ref so `useNextStep` flushes before splicing — otherwise
+the resting sample lands in the next trial.
+
+The shape of this bug matters more than the fix: a hook that advances its own baseline, plus
+a consumer free to drop the call, equals silent data loss. Neither half is wrong alone.
+
+**A hidden tab turned into motion.** `requestAnimationFrame` pauses while a tab is hidden,
+but `deltaMs` kept measuring from the previous callback, so the first resumed frame
+multiplied stick input by minutes of elapsed time and threw the reticle to the field edge.
+Fixed by clamping the frame delta to 50 ms.
+
+**The on-screen prompt lagged a round.** Spawning a target updated the prompt in Trrack
+state but not in the local state mirror. Holding one value in two places invites this.
+
+## The lesson under all four
+
+Every test written here assumed a working device. The one behaviour the code explicitly
+claimed — that a participant without hardware is never trapped — was the only one never
+exercised, because every end-to-end test connected a synthetic gamepad before doing anything
+else. A new modality should have a no-device test from the first commit.
+
+## Still open upstream
+
+The TODOs on the merged PR match this document's gap list: the `gamepad` library with a
+connection component, `allow="gamepad"` on the iframe for cross-origin stimuli, a policy for
+non-standard mappings, a real-hardware pass beyond the Xbox-over-USB-C-in-Safari check that
+was done, and docs-site documentation.
