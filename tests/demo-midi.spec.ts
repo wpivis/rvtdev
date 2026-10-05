@@ -13,6 +13,46 @@ const NOTE_OFF = 0x80;
 const CONTROL_CHANGE = 0xb0;
 const SUSTAIN_PEDAL = 64;
 
+/** A canvas-backed stand-in for a shared screen, for the recording step. */
+async function installFakeDisplayMedia(page: Page) {
+  await page.addInitScript(() => {
+    if (!navigator.mediaDevices) {
+      return;
+    }
+    navigator.mediaDevices.getDisplayMedia = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      const context = canvas.getContext('2d')!;
+      const paint = () => {
+        context.fillStyle = `hsl(${(Date.now() / 20) % 360}, 60%, 70%)`;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      };
+      paint();
+      setInterval(paint, 100);
+      return (canvas as HTMLCanvasElement & { captureStream: (fps: number) => MediaStream }).captureStream(10);
+    };
+  });
+}
+
+/** Walks to the first trial in a browser with no Web MIDI, connecting nothing. */
+async function walkToFirstTrialWithoutMidi(page: Page) {
+  await openStudyFromLanding(page, 'Demo Studies', 'MIDI Piano Input with Provenance');
+  await nextClick(page);
+
+  await expect(page.getByText('This browser cannot talk to a MIDI instrument')).toBeVisible({ timeout: 15000 });
+  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+  await page.getByRole('button', { name: 'Start Recording' }).click();
+  const recordingContinue = page.getByRole('button', { name: 'Continue', exact: true });
+  await expect(recordingContinue).toBeEnabled({ timeout: 15000 });
+  await recordingContinue.click();
+
+  // Only the element, not a prompt: with no Web MIDI no device is ever seen, so
+  // the task never issues one. That is the point of these tests.
+  await expect(page.getByTestId('midi-prompt')).toBeVisible({ timeout: 15000 });
+}
+
 /**
  * Installs a synthetic MIDI instrument plus a fake screen-capture stream.
  *
@@ -22,8 +62,8 @@ const SUSTAIN_PEDAL = 64;
  * comes from the browser, not from the fake -- so everything above the Web MIDI
  * boundary is the production code path.
  */
-async function installFakeMidi(page: Page) {
-  await page.addInitScript(() => {
+async function installFakeMidi(page: Page, options: { connected?: boolean } = {}) {
+  await page.addInitScript((startConnected) => {
     class FakeInput extends EventTarget {
       id = 'fake-midi-in';
 
@@ -51,7 +91,7 @@ async function installFakeMidi(page: Page) {
     }
 
     const input = new FakeInput();
-    let connected = true;
+    let connected = startConnected;
 
     class FakeAccess extends EventTarget {
       sysexEnabled = false;
@@ -85,22 +125,21 @@ async function installFakeMidi(page: Page) {
     };
 
     navigator.requestMIDIAccess = () => Promise.resolve(access as unknown as MIDIAccess);
+  }, options.connected ?? true);
+  await installFakeDisplayMedia(page);
+}
 
-    if (navigator.mediaDevices) {
-      navigator.mediaDevices.getDisplayMedia = async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 480;
-        const context = canvas.getContext('2d')!;
-        const paint = () => {
-          context.fillStyle = `hsl(${(Date.now() / 20) % 360}, 60%, 70%)`;
-          context.fillRect(0, 0, canvas.width, canvas.height);
-        };
-        paint();
-        setInterval(paint, 100);
-        return (canvas as HTMLCanvasElement & { captureStream: (fps: number) => MediaStream }).captureStream(10);
-      };
-    }
+/**
+ * Removes Web MIDI entirely, which is the Safari case on every version and
+ * platform. Nothing here can be made to work; the study has to cope.
+ */
+async function installNoMidiSupport(page: Page) {
+  await page.addInitScript(() => {
+    Reflect.deleteProperty(Navigator.prototype, 'requestMIDIAccess');
+    Object.defineProperty(navigator, 'requestMIDIAccess', {
+      value: undefined,
+      configurable: true,
+    });
   });
 }
 
@@ -175,6 +214,7 @@ async function readStoredTrial(page: Page, trialPrefix: string) {
     return {
       windowEventKinds: Array.from(new Set(windowEvents.map((event) => event[1]))),
       noteOnPayloads: windowEvents.filter((event) => event[1] === 'midinoteon').map((event) => event[2]),
+      noteOffPayloads: windowEvents.filter((event) => event[1] === 'midinoteoff').map((event) => event[2]),
       controlChangePayloads: windowEvents.filter((event) => event[1] === 'midicc').map((event) => event[2]),
       answer: answer?.answer ?? {},
       nodeActionTypes: Object.values(nodes).map(
@@ -189,6 +229,11 @@ async function reachFirstTrial(page: Page) {
   await openStudyFromLanding(page, 'Demo Studies', 'MIDI Piano Input with Provenance');
   await expect(page.getByText('MIDI Piano Input with Provenance').first()).toBeVisible({ timeout: 15000 });
   await nextClick(page);
+
+  // Attach the instrument here rather than before the study opens: the fake is
+  // installed as an init script, so navigating resets whatever a test set earlier.
+  // A no-op for a fake that already starts connected.
+  await setConnected(page, true);
 
   // MIDI setup: the instrument is listed, and one note unlocks Continue. Note
   // that nothing had to be pressed for the instrument to appear -- the browser
@@ -215,8 +260,123 @@ async function reachFirstTrial(page: Page) {
   await expect(recordingContinue).toBeEnabled({ timeout: 15000 });
   await recordingContinue.click();
 
-  await expect(page.getByTestId('midi-prompt')).toBeVisible({ timeout: 15000 });
+  // Wait for a prompt to actually be issued, not merely for the element to exist.
+  // The task issues its first prompt from an effect once a device is seen, and a
+  // note arriving before that is scored against no target and dropped, so a test
+  // that plays immediately would silently race.
+  await expect(page.getByTestId('midi-prompt')).toHaveText(noteName(MELODY[0]), { timeout: 15000 });
 }
+
+/**
+ * No-device tests.
+ *
+ * These exist because of what upstream review found in the gamepad work: every
+ * test there connected a synthetic controller before doing anything, so the one
+ * behaviour the code explicitly claimed -- that a participant without hardware is
+ * never trapped -- was the only one never exercised, and it was broken.
+ *
+ * The first group walks the whole study in a browser with **no Web MIDI at all**,
+ * so no instrument is ever connected at any point.
+ */
+test.describe('MIDI in a browser with no Web MIDI', () => {
+  test.beforeEach(async ({ page }) => {
+    await installNoMidiSupport(page);
+    await installFakeDisplayMedia(page);
+    await resetClientStudyState(page);
+  });
+
+  test('the setup page says why, and does not trap the participant', async ({ page }) => {
+    await openStudyFromLanding(page, 'Demo Studies', 'MIDI Piano Input with Provenance');
+    await nextClick(page);
+
+    await expect(page.getByText('This browser cannot talk to a MIDI instrument')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Safari/)).toBeVisible();
+    // No device table, because there is no API to ask.
+    await expect(page.getByTestId('midi-device-table')).toHaveCount(0);
+
+    // No action the participant could take would ever satisfy a MIDI gate here, so
+    // the gate must not hold them. Screening on browser is the real answer for a
+    // live study; stranding someone on page two is strictly worse.
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByText('This browser cannot talk to a MIDI instrument')).toBeHidden({ timeout: 15000 });
+  });
+
+  test('a trial is playable-looking, honest, and escapable with no instrument ever connected', async ({ page }) => {
+    await walkToFirstTrialWithoutMidi(page);
+
+    await expect(page.getByTestId('midi-waiting')).toBeVisible();
+    await expect(page.getByText('This browser has no Web MIDI support')).toBeVisible();
+    await expect(page.getByTestId('midi-hits')).toHaveText('0');
+    await expect(page.getByTestId('midi-misses')).toHaveText('0');
+    // No prompt is issued, because nothing could answer it.
+    await expect(page.getByTestId('midi-prompt')).toHaveText('\u2014');
+
+    // The trial must be escapable. Its reactive responses default to required, so
+    // this only passes because the stimulus publishes a valid zero-valued answer
+    // on mount instead of waiting for a first note.
+    const before = page.url();
+    await nextClick(page);
+    await expect.poll(() => page.url(), { timeout: 15000 }).not.toBe(before);
+    await expect(page.getByText('Please complete the stimulus interaction to continue.')).toHaveCount(0);
+  });
+
+  test('the zero-valued answer is actually stored, not just permitted', async ({ page }) => {
+    await walkToFirstTrialWithoutMidi(page);
+
+    const before = page.url();
+    await nextClick(page);
+    await expect.poll(() => page.url(), { timeout: 15000 }).not.toBe(before);
+
+    await expect.poll(
+      async () => (await readStoredTrial(page, 'midi-scale')).answer,
+      { timeout: 30000 },
+    ).toMatchObject({
+      notesHit: 0,
+      misses: 0,
+      completed: false,
+      // Aggregates over nothing are null rather than NaN, which would not survive
+      // the JSON round trip into storage.
+      meanVelocityError: null,
+      meanOnsetIntervalMs: null,
+      onsetJitterMs: null,
+      meanNoteDurationMs: null,
+    });
+  });
+});
+
+test.describe('MIDI with support but no instrument', () => {
+  test.beforeEach(async ({ page }) => {
+    await installFakeMidi(page, { connected: false });
+    await resetClientStudyState(page);
+  });
+
+  test('the setup page explains a missing instrument and gates on it', async ({ page }) => {
+    await openStudyFromLanding(page, 'Demo Studies', 'MIDI Piano Input with Provenance');
+    await nextClick(page);
+
+    await expect(page.getByText('No instrument detected')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId('midi-device-table')).toHaveCount(0);
+
+    // Gating *is* right here, and matches the screen-recording library: the
+    // participant can act on it by plugging something in.
+    await page.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(page.getByText(/No MIDI instrument is connected yet/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('No instrument detected')).toBeVisible();
+  });
+
+  test('an instrument that dies after setup does not trap the participant', async ({ page }) => {
+    // reachFirstTrial attaches the instrument once the setup page is up, which is
+    // all this needs: unplug before the trial and never play a note on it -- the
+    // mid-study hardware failure case.
+    await reachFirstTrial(page);
+    await setConnected(page, false);
+    await expect(page.getByTestId('midi-waiting')).toBeVisible({ timeout: 10000 });
+
+    const before = page.url();
+    await nextClick(page);
+    await expect.poll(() => page.url(), { timeout: 15000 }).not.toBe(before);
+  });
+});
 
 test.describe('MIDI stimulus with provenance and screen recording', () => {
   test.beforeEach(async ({ page }) => {
@@ -357,6 +517,98 @@ test.describe('MIDI stimulus with provenance and screen recording', () => {
     expect(stored.answer.meanVelocityError).toEqual(expect.any(Number));
     expect(stored.answer.meanOnsetIntervalMs).toEqual(expect.any(Number));
     expect(stored.answer.meanNoteDurationMs).toEqual(expect.any(Number));
+  });
+
+  test('never throttles or coalesces note events, however fast they arrive', async ({ page }) => {
+    await reachFirstTrial(page);
+
+    // A fast passage, well inside one windowEventDebounceTime (100ms). Every one
+    // of these is a distinct musical event and all of them must be recorded --
+    // merging two notes is not a lossy sample, it is a wrong transcription.
+    const burst = [60, 62, 64, 65, 67, 69, 71, 72];
+    for (let index = 0; index < burst.length; index += 1) {
+      await sendMidi(page, [NOTE_ON, burst[index], 60 + index]);
+      await sendMidi(page, [NOTE_OFF, burst[index], 0]);
+    }
+
+    await nextClick(page);
+    await expect(page.getByTestId('midi-prompt')).toBeVisible({ timeout: 15000 });
+
+    await expect.poll(
+      async () => (await readStoredTrial(page, 'midi-scale')).noteOnPayloads.length,
+      { timeout: 30000 },
+    ).toBeGreaterThanOrEqual(burst.length);
+
+    const stored = await readStoredTrial(page, 'midi-scale');
+    // Every note, with its own velocity, in order.
+    expect(stored.noteOnPayloads).toEqual(expect.arrayContaining(
+      burst.map((note, index) => [note, 60 + index]),
+    ));
+    expect(stored.noteOffPayloads.length).toBeGreaterThanOrEqual(burst.length);
+  });
+
+  test('a control-change sweep keeps its final resting value', async ({ page }) => {
+    await reachFirstTrial(page);
+
+    // A mod-wheel sweep that starts and ends inside one throttle window. A
+    // leading-edge throttle would record only the 20 and leave the stored stream
+    // claiming the wheel sat there forever -- the axis-throttle bug upstream
+    // review found in the gamepad work. The newest value must win instead.
+    const MOD_WHEEL = 1;
+    for (const value of [20, 44, 68, 92, 64]) {
+      await sendMidi(page, [CONTROL_CHANGE, MOD_WHEEL, value]);
+    }
+
+    await nextClick(page);
+    await expect(page.getByTestId('midi-prompt')).toBeVisible({ timeout: 15000 });
+
+    await expect.poll(
+      async () => (await readStoredTrial(page, 'midi-scale')).controlChangePayloads.length,
+      { timeout: 30000 },
+    ).toBeGreaterThan(0);
+
+    const wheel = (await readStoredTrial(page, 'midi-scale')).controlChangePayloads
+      .filter((payload) => payload[0] === MOD_WHEEL);
+
+    // Coalesced, so the whole sweep need not be present...
+    expect(wheel.length).toBeGreaterThan(0);
+    // ...but where the wheel actually came to rest must be.
+    expect(wheel[wheel.length - 1]).toEqual([MOD_WHEEL, 64]);
+  });
+
+  test('a long pause is kept out of the timing aggregates', async ({ page }) => {
+    await reachFirstTrial(page);
+
+    // Two notes close together, then a gap longer than a musical interval, then
+    // two more. An unclamped mean would be dominated by the gap.
+    await playNote(page, MELODY[0], TARGET_VELOCITY);
+    await expect(page.getByTestId('midi-hits')).toHaveText('1', { timeout: 10000 });
+    await playNote(page, MELODY[1], TARGET_VELOCITY);
+    await expect(page.getByTestId('midi-hits')).toHaveText('2', { timeout: 10000 });
+
+    await page.waitForTimeout(5200);
+
+    await playNote(page, MELODY[2], TARGET_VELOCITY);
+    await expect(page.getByTestId('midi-hits')).toHaveText('3', { timeout: 10000 });
+    await playNote(page, MELODY[3], TARGET_VELOCITY);
+    await expect(page.getByTestId('midi-hits')).toHaveText('4', { timeout: 10000 });
+
+    await nextClick(page);
+    await expect(page.getByTestId('midi-prompt')).toBeVisible({ timeout: 15000 });
+
+    // Poll on the type, not on not-null: an answer that has not landed yet reads
+    // as undefined, which would satisfy a not-null assertion and then fail below.
+    await expect.poll(
+      async () => typeof (await readStoredTrial(page, 'midi-scale')).answer.meanOnsetIntervalMs,
+      { timeout: 30000 },
+    ).toBe('number');
+
+    const { answer } = await readStoredTrial(page, 'midi-scale');
+    // Three gaps were produced: two of a few hundred ms and one of 5.2s. With the
+    // 5.2s one excluded the mean stays near the fast notes; including it would put
+    // the mean around 2000ms, so this threshold is what distinguishes the two.
+    expect(answer.meanOnsetIntervalMs as number).toBeLessThan(1000);
+    expect(answer.meanOnsetIntervalMs as number).toBeGreaterThan(0);
   });
 
   test('recovers when the instrument is unplugged mid-trial', async ({ page }) => {

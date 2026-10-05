@@ -162,9 +162,27 @@ export function StepRenderer() {
 
   // Notes are discrete and sparse -- a fast passage is tens of events per second,
   // not the hundreds a 60Hz axis stream produces -- so note messages are pushed
-  // unthrottled and keep their own timestamps. Only control change needs a budget,
-  // because a swept mod wheel or expression pedal is genuinely continuous.
-  const lastControlChangeTime = useRef<Record<number, number>>({});
+  // unthrottled and keep their own timestamps. Note on/off is never throttled,
+  // debounced or coalesced: every one is a distinct musical event, and merging two
+  // would merge two separate notes.
+  //
+  // Only control change needs a budget, because a swept mod wheel, breath
+  // controller or expression pedal is genuinely continuous.
+  //
+  // It is *coalesced* rather than throttled. A leading-edge throttle -- drop
+  // anything arriving inside the window -- loses the tail of every gesture: a
+  // wheel swept and released inside one window leaves the stored stream showing
+  // it still held at an old value, permanently. That is the axis-throttle bug
+  // upstream review found in the gamepad work. Here the newest message always
+  // wins: within the window it overwrites the entry it already wrote, so volume
+  // stays bounded at roughly one entry per controller per window while the final
+  // resting value is always recorded.
+  //
+  // Holding the written tuple by identity is what makes this safe across a
+  // component change: `useNextStep` splices `windowEvents` when the step advances,
+  // so a stale entry is no longer in the array and the identity check fails,
+  // forcing a fresh append into the new trial instead of mutating the old one.
+  const lastControlChange = useRef<Record<number, { event: EventType; at: number }>>({});
   useMidi({
     enabled: captureMidi && !isAnalysis,
     autoRequest: true,
@@ -180,16 +198,29 @@ export function StepRenderer() {
       windowEvents.current.push([epochMs, 'midinoteoff', [note, velocity]]);
     },
     onControlChange: ({ controller, value, epochMs }) => {
-      // Switch-style controllers (sustain pedal, sostenuto) only ever send 0 or
-      // 127, and losing one of those to the throttle would lose a pedal press, so
-      // the extremes always go through.
+      const previous = lastControlChange.current[controller];
+      // Switch-style controllers (sustain, sostenuto) only ever send 0 or 127, and
+      // each transition is its own event, so the extremes always get their own
+      // entry rather than being folded into a neighbour.
       const isExtreme = value === 0 || value === 127;
-      const last = lastControlChangeTime.current[controller] ?? 0;
-      if (!isExtreme && epochMs - last < windowEventDebounceTime) {
+      const withinWindow = previous !== undefined
+        && epochMs - previous.at < windowEventDebounceTime
+        // Still the entry we wrote? If the step advanced, it has been spliced out.
+        && windowEvents.current.includes(previous.event);
+
+      if (!isExtreme && withinWindow) {
+        // Overwrite in place: the stored sample becomes the newest one rather than
+        // the oldest, so nothing is lost when a gesture ends inside the window.
+        const event = previous.event as [number, 'midicc', number[]];
+        event[0] = epochMs;
+        event[2] = [controller, value];
+        previous.at = epochMs;
         return;
       }
-      lastControlChangeTime.current[controller] = epochMs;
-      windowEvents.current.push([epochMs, 'midicc', [controller, value]]);
+
+      const event: EventType = [epochMs, 'midicc', [controller, value]];
+      windowEvents.current.push(event);
+      lastControlChange.current[controller] = { event, at: epochMs };
     },
   });
 

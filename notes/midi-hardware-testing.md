@@ -161,6 +161,24 @@ provenance nodes should line up with the notes.
 - **Download the tidy export** and check the window-event counts include
   `midinoteon`, `midinoteoff`, `midicc` and `mididevice`.
 
+## Worth a look because review caught it on the gamepad
+
+Upstream review of the gamepad PR found that a participant without a working device
+was trapped on the trial. The equivalent bug was in this code too and is fixed, but
+it is worth confirming by hand, because it is the failure a real participant is most
+likely to hit:
+
+- **Unplug the piano during a trial and click Next.** It should advance. If it
+  refuses with "Please complete the stimulus interaction to continue", the
+  mount-time answer has regressed.
+- **If you have a mod wheel or expression pedal**, sweep it and leave it somewhere
+  in the middle. The exported `midicc` entries should end at roughly where you left
+  it, not where the sweep started.
+- **Open the study in Safari once.** You should get the red panel naming Chrome and
+  Edge, and **Continue should still work** — it records that you had no MIDI rather
+  than stranding you. That is deliberate: no action a Safari user takes could ever
+  satisfy a MIDI gate.
+
 ## If something is wrong
 
 Useful things to capture, in rough order of usefulness:

@@ -66,14 +66,16 @@ not hundreds, and every one of them is already a meaningful musical event. So:
   sample.
 - **Every note goes into the provenance graph.** No "keep this out" rule, no
   sampling interval, no splitting into a separate storage key.
-- **Only control change needs a budget**, because a swept mod wheel or expression
-  pedal genuinely is continuous. `StepRenderer` throttles CC per controller
-  number, and always lets values of 0 and 127 through so switch-style controllers
-  (sustain, sostenuto) never lose a transition to the throttle.
+- **Only control change needs a budget**, because a swept mod wheel, breath
+  controller or expression pedal genuinely is continuous. `StepRenderer` coalesces
+  CC per controller number rather than throttling it, and always gives values of 0
+  and 127 their own entry so switch-style controllers (sustain, sostenuto) never
+  lose a transition.
 
 That last detail is the only place the gamepad's throttling instinct earns its
-keep, and it needed a modification the gamepad did not: a time-based throttle
-alone silently eats pedal presses.
+keep, and it needed two modifications the gamepad did not — see bug 2 below. A
+plain time-based throttle silently eats pedal presses *and* loses the end of every
+continuous gesture.
 
 ## What exists on this branch
 
@@ -110,6 +112,104 @@ instruments, asks for one note, records the device names in a hidden reactive
 response, and gates progression. A study author imports it rather than
 rebuilding it. The demo stimulus has its own "waiting for an instrument" overlay,
 but that is a fallback for a mid-trial unplug, not the setup flow.
+
+## The four bugs upstream review found in the gamepad work
+
+`revisit-studies/study#1488` merged on 2026-09-29, and review found four bugs in the
+gamepad code this branch was templated from. All four were checked against this
+branch. Two applied directly, one applied in a different guise, and one did not
+apply. Each fix has a test that was confirmed to fail without it.
+
+### 1. The initial answer was never published — applied directly
+
+`MidiMelodyTask` called `setAnswer` only from its note-on handler, and its reactive
+responses default to required. The trial therefore started invalid, so a
+participant whose instrument never worked could not leave it — while a comment in
+the file claimed the opposite. The same bug, the same false comment, as the
+gamepad.
+
+Fixed by publishing a valid zero-valued answer on mount, guarded by a ref rather
+than by effect dependencies: a deps-driven re-run (if `setAnswer` ever changed
+identity) would reset a real tally back to zeros.
+
+A second instance of the same class, which the gamepad did not have: the
+`midiConnection` setup component gated on a device the participant could not
+obtain *in a browser with no Web MIDI at all*. No action could ever satisfy that
+gate, so it now lets an unsupported browser past and records `midiConnection:
+false` and `midiSupported: false` instead of stranding them. Where the participant
+*can* act — supported browser, nothing plugged in — the gate still holds, matching
+`screenRecordingPermission`. Screening on browser is the real answer for a live
+study; stranding someone on page two is strictly worse.
+
+### 2. The throttle discarded samples permanently — applied in a different guise
+
+Note events were already unthrottled, so the gamepad's axis bug could not reach
+them. Control change was throttled, and the throttle had exactly the bug's shape: a
+leading-edge throttle drops anything arriving inside the window, so a mod wheel
+swept and released within one window left the stored stream showing it held at an
+old value *permanently*.
+
+Fixed by coalescing rather than throttling. The newest message overwrites the entry
+already written for that controller within the window, so volume stays bounded at
+roughly one entry per controller per window while the final resting value is always
+recorded. The written tuple is held by identity and checked against the array
+before being mutated, so once `useNextStep` splices `windowEvents` on a step change
+the check fails and a fresh entry is appended into the new trial. That is what
+makes this safe without the `flushPending` plumbing the gamepad fix needed —
+coalescing has nothing pending to flush.
+
+**Note on/off is never throttled, debounced or coalesced.** Merging two notes is
+not a lossy sample, it is a wrong transcription. There is a test that plays eight
+notes inside one debounce window and asserts all eight are stored with their own
+velocities.
+
+### 3. A hidden tab turned into motion — applied as unbounded deltas
+
+There is no per-frame delta here to clamp: there is no animation-frame loop at all,
+which is the whole point of the modality. The same hazard appears where the
+unbounded deltas actually are — the inter-onset intervals and note durations
+computed from MIDI timestamps. A participant who stops to read, or whose tab sat in
+the background, produces a gap of minutes, and one of those would dominate both the
+mean and the jitter.
+
+Fixed by keeping deltas over five seconds out of the timing aggregates (the live
+readout still shows them). Durations are also rejected if negative, which would
+mean the clock went backwards. Confirmed discriminating: with the clamp the demo's
+mean interval is a few hundred milliseconds, without it 1871 ms.
+
+### 4. The on-screen prompt lagged a round — did not apply
+
+`promptAt` applies the Trrack action and commits the local mirror in the same call,
+so the two cannot drift. Kept that way deliberately; the gamepad's version updated
+Trrack state and left the mirror behind.
+
+## The lesson: no-device tests from the first commit
+
+The upstream note is blunt about why bug 1 shipped — every gamepad test connected a
+synthetic controller before doing anything, so the one behaviour the code
+explicitly claimed was the only one never exercised. This branch now has six tests
+that never connect an instrument:
+
+- Three run the study in a browser with **no Web MIDI at all**, walking from the
+  landing page to a trial and off the end of it. Nothing is ever connected at any
+  point, which the unsupported-browser gate fix makes reachable.
+- One asserts the stored answer is actually zero-valued, not merely that
+  progression was permitted.
+- One covers a supported browser with nothing plugged in, where gating *is* correct,
+  and asserts the message is actionable.
+- One covers an instrument that dies after setup — connected only long enough to
+  clear the gate, then unplugged, with no note ever played on the trial.
+
+Direct `/:studyId/:index` navigation is not available for this, incidentally: the
+path segment is a base64 participant/sequence token, not a step index, and a bare
+index renders the application error boundary.
+
+One race worth recording, found while writing these: the task issues its first
+prompt from an effect once a device is seen, so a note arriving before that is
+scored against no target and silently dropped. Tests that played immediately after
+reaching a trial were passing on timing luck. The helper now waits for a prompt to
+actually be issued rather than for the element to exist. A study author driving this
+stimulus programmatically would hit the same thing.
 
 ## The `onmidimessage` trap
 
@@ -278,8 +378,8 @@ device half accurately because it waits for a note.
 - The synthetic MIDI harness lives in `tests/demo-midi.spec.ts` and should move to
   `tests/utils.ts` so other specs can drive an instrument. Same note the gamepad
   proposal made about `installFakeGamepad`, still unaddressed in both.
-- The CC throttle in `StepRenderer` is covered end-to-end (the pedal's 0 and 127
-  both survive) but has no unit test.
+- The CC coalescing in `StepRenderer` is covered end-to-end (the pedal's 0 and 127
+  both survive, and a sweep keeps its resting value) but has no unit test.
 - `MidiKeyboard` has no render-level unit test; it is covered only through the
   e2e spec's `data-active` and `fill` assertions.
 - Seven e2e specs fail on this branch — and identically on clean `main`, verified

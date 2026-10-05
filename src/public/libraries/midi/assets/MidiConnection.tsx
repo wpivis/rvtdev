@@ -94,7 +94,16 @@ function MidiConnection({ parameters, setAnswer }: StimulusParams<MidiConnection
     [devices],
   );
 
-  const ready = connectedDevices.length > 0 && noteCount >= requiredNotes;
+  const deviceConfirmed = connectedDevices.length > 0 && noteCount >= requiredNotes;
+
+  // A browser with no Web MIDI at all is not a gate the participant can clear --
+  // no action they take will ever satisfy it -- so it must not block them. The
+  // page tells them to switch browsers, and `midiConnection: false` records that
+  // they had no MIDI, but they can still move through the study rather than being
+  // stranded on this page with no way forward and no way out. The real answer for
+  // a live study is to screen on browser before this point; trapping is strictly
+  // worse than letting them pass with the fact recorded.
+  const ready = deviceConfirmed || !supported;
 
   // What to tell the participant if they try to continue too early. reVISit
   // leaves the Next button clickable and surfaces this on the attempt, rather
@@ -103,13 +112,16 @@ function MidiConnection({ parameters, setAnswer }: StimulusParams<MidiConnection
     if (ready) {
       return undefined;
     }
+    if (!supported) {
+      return undefined;
+    }
     if (connectedDevices.length === 0) {
       return 'No MIDI instrument is connected yet. Plug your instrument in over USB and switch it on, then play a note to continue.';
     }
     return requiredNotes === 1
       ? 'Please play one note on your instrument to confirm it is working.'
       : `Please play ${requiredNotes} notes on your instrument to confirm it is working.`;
-  }, [connectedDevices.length, ready, requiredNotes]);
+  }, [connectedDevices.length, ready, requiredNotes, supported]);
 
   useEffect(() => {
     setAnswer({
@@ -117,7 +129,11 @@ function MidiConnection({ parameters, setAnswer }: StimulusParams<MidiConnection
       reason: ready ? undefined : 'customPending',
       message: blockedMessage,
       answers: {
-        midiConnection: ready,
+        // What is recorded is whether the instrument was actually confirmed, not
+        // whether the participant was allowed past -- an unsupported browser
+        // passes the gate but must not look like a working instrument in the data.
+        midiConnection: deviceConfirmed,
+        midiSupported: supported,
         // Recorded so every participant record carries the instrument it was
         // collected on. These strings are device and driver names, not serial
         // numbers, but they are still worth naming in a consent form.
@@ -125,7 +141,7 @@ function MidiConnection({ parameters, setAnswer }: StimulusParams<MidiConnection
         midiNotesPlayed: noteCount,
       },
     });
-  }, [blockedMessage, connectedDevices, noteCount, ready, setAnswer]);
+  }, [blockedMessage, connectedDevices, deviceConfirmed, noteCount, ready, setAnswer, supported]);
 
   if (!supported) {
     return (

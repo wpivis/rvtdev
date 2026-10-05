@@ -65,11 +65,20 @@ Library and demo:
 - `public/demo-midi/` — a melody-matching task recording velocity, inter-onset
   intervals and note durations, with screen recording on.
 
+## The gamepad's reviewed bugs
+
+Upstream review of `revisit-studies/study#1488` found four bugs in the gamepad code
+this branch was templated from. All four were checked here: two applied directly,
+one applied in a different guise, one did not. The `## The four bugs upstream review
+found in the gamepad work` section of `notes/midi-support-proposal.md` has the
+detail. Each fix has a test confirmed to fail without it, and the branch now has
+six tests that never connect an instrument — the gap that let the first bug ship.
+
 ## Validation
 
 - `yarn typecheck`, `yarn lint` — clean.
 - `npx vitest run` — 2112 passed, 1 skipped, across 152 files.
-- `npx playwright test demo-midi` — 4 passed, Chromium, against a synthetic port.
+- `npx playwright test demo-midi` — 12 passed, Chromium, against a synthetic port.
 - Seven other e2e specs fail on this branch **and identically on clean `main`**
   (verified in a separate worktree). All iframe/website stimuli, unrelated.
 - **Not yet verified against real hardware.** See the real-hardware pass in

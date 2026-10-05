@@ -36,6 +36,12 @@ interface MelodyTaskParams {
   keyCount?: number;
 }
 
+/**
+ * Longest gap, in milliseconds, still treated as a musical interval. Anything
+ * longer is a pause rather than rhythm, and is kept out of the timing aggregates.
+ */
+const MAX_MUSICAL_INTERVAL_MS = 5000;
+
 /** C major scale fragment, used when a component supplies no melody. */
 const DEFAULT_MELODY = [60, 62, 64, 65, 67];
 
@@ -191,6 +197,9 @@ function MidiMelodyTask({
     setAnswer({
       // Status stays true throughout so a participant whose instrument misbehaves
       // is never trapped on this trial; how far they got is in `completed`.
+      // This is only true because of the mount-time publish below -- the claim
+      // without it is exactly the bug upstream review found in the gamepad
+      // stimulus, where the first setAnswer happened after the first button press.
       status: true,
       answers: {
         notesHit: state.hits,
@@ -234,8 +243,16 @@ function MidiMelodyTask({
     const interval = previousOnsetRef.current === null ? null : timeStamp - previousOnsetRef.current;
     previousOnsetRef.current = timeStamp;
     if (interval !== null) {
-      onsetIntervalsRef.current.push(interval);
       setLastInterval(interval);
+      // Only intervals inside a musical range reach the aggregate. A participant
+      // who stops to read the instructions, or whose tab sat in the background,
+      // produces a gap of minutes, and a single one of those would dominate both
+      // the mean and the jitter. The gamepad had the same hazard in a different
+      // guise -- an unbounded frame delta after a hidden tab -- and clamping is
+      // the same lesson, applied where the unbounded delta actually is.
+      if (interval <= MAX_MUSICAL_INTERVAL_MS) {
+        onsetIntervalsRef.current.push(interval);
+      }
     }
 
     const hit = note === current.promptNote;
@@ -302,11 +319,30 @@ function MidiMelodyTask({
     const onset = heldRef.current.get(note);
     if (onset !== undefined) {
       heldRef.current.delete(note);
-      if (!isReplay) {
-        noteDurationsRef.current.push(timeStamp - onset);
+      const duration = timeStamp - onset;
+      // Same clamp: a key still held when the participant walks away is not a
+      // note duration, and a negative value would mean the clock went backwards.
+      if (!isReplay && duration >= 0 && duration <= MAX_MUSICAL_INTERVAL_MS) {
+        noteDurationsRef.current.push(duration);
       }
     }
   }, [isReplay]);
+
+  // Publish a valid zero-valued answer on mount.
+  //
+  // The reactive responses on this component default to required, so without this
+  // the trial starts invalid and a participant whose instrument never works is
+  // stuck on it with no way forward. Guarded by a ref rather than by effect deps:
+  // if `setAnswer` ever changed identity mid-trial, a deps-driven re-run would
+  // wipe a real tally back to zeros.
+  const publishedInitialAnswer = useRef(false);
+  useEffect(() => {
+    if (isReplay || publishedInitialAnswer.current) {
+      return;
+    }
+    publishedInitialAnswer.current = true;
+    publishAnswer(INITIAL_STATE);
+  }, [isReplay, publishAnswer]);
 
   const { devices, supported, status } = useMidi({
     onNoteOn: handleNoteOn,
