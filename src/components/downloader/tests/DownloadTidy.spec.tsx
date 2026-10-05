@@ -416,6 +416,10 @@ describe('getTableData', () => {
         resize: 1,
         scroll: 1,
         visibility: 1,
+        midinoteon: 0,
+        midinoteoff: 0,
+        midicc: 0,
+        mididevice: 0,
       }),
     }));
   });

@@ -245,6 +245,10 @@ function participantDataToRows(
         resize: trialAnswer.windowEvents.filter((event) => event[1] === 'resize').length,
         scroll: trialAnswer.windowEvents.filter((event) => event[1] === 'scroll').length,
         visibility: trialAnswer.windowEvents.filter((event) => event[1] === 'visibility').length,
+        midinoteon: trialAnswer.windowEvents.filter((event) => event[1] === 'midinoteon').length,
+        midinoteoff: trialAnswer.windowEvents.filter((event) => event[1] === 'midinoteoff').length,
+        midicc: trialAnswer.windowEvents.filter((event) => event[1] === 'midicc').length,
+        mididevice: trialAnswer.windowEvents.filter((event) => event[1] === 'mididevice').length,
       };
 
       // Add a window events count row for each component

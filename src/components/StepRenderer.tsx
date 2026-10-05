@@ -23,6 +23,7 @@ import { studyComponentToIndividualComponent } from '../utils/handleComponentInh
 import { useCurrentComponent } from '../routes/utils';
 import { useFetchStylesheet } from '../utils/fetchStylesheet';
 import { RecordingContext, useRecording } from '../store/hooks/useRecording';
+import { useMidi } from '../store/hooks/useMidi';
 import { ScreenRecordingRejection } from './interface/ScreenRecordingRejection';
 import { ReplayContext, useReplay } from '../store/hooks/useReplay';
 import { DeviceWarning } from './interface/DeviceWarning';
@@ -149,6 +150,48 @@ export function StepRenderer() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // MIDI capture is opt-in per study, mirroring `recordScreen`: a study that does
+  // not use an instrument never calls `requestMIDIAccess` and never subscribes to
+  // a port. (The gamepad exploration got this wrong and ran its polling loop on
+  // every study -- see notes/midi-support-proposal.md.)
+  const captureMidi = useMemo(
+    () => (componentConfig.captureMidi ?? studyConfig.uiConfig.captureMidi ?? false),
+    [componentConfig.captureMidi, studyConfig.uiConfig.captureMidi],
+  );
+
+  // Notes are discrete and sparse -- a fast passage is tens of events per second,
+  // not the hundreds a 60Hz axis stream produces -- so note messages are pushed
+  // unthrottled and keep their own timestamps. Only control change needs a budget,
+  // because a swept mod wheel or expression pedal is genuinely continuous.
+  const lastControlChangeTime = useRef<Record<number, number>>({});
+  useMidi({
+    enabled: captureMidi && !isAnalysis,
+    autoRequest: true,
+    onDeviceChange: (devices, timestamp) => {
+      windowEvents.current.push([timestamp, 'mididevice', devices.length === 0
+        ? 'none'
+        : devices.map((device) => `${device.state}:${device.name || device.id}`).join(',')]);
+    },
+    onNoteOn: ({ note, velocity, epochMs }) => {
+      windowEvents.current.push([epochMs, 'midinoteon', [note, velocity]]);
+    },
+    onNoteOff: ({ note, velocity, epochMs }) => {
+      windowEvents.current.push([epochMs, 'midinoteoff', [note, velocity]]);
+    },
+    onControlChange: ({ controller, value, epochMs }) => {
+      // Switch-style controllers (sustain pedal, sostenuto) only ever send 0 or
+      // 127, and losing one of those to the throttle would lose a pedal press, so
+      // the extremes always go through.
+      const isExtreme = value === 0 || value === 127;
+      const last = lastControlChangeTime.current[controller] ?? 0;
+      if (!isExtreme && epochMs - last < windowEventDebounceTime) {
+        return;
+      }
+      lastControlChangeTime.current[controller] = epochMs;
+      windowEvents.current.push([epochMs, 'midicc', [controller, value]]);
+    },
+  });
 
   const { developmentModeEnabled, dataCollectionEnabled } = useMemo(() => modes, [modes]);
 

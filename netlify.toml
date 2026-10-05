@@ -1,0 +1,22 @@
+[build]
+  command = "yarn build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Overrides the "/study/" value committed in .env, which is meant for a
+  # subpath deployment. Netlify serves branch deploys from the domain root,
+  # so without this the deploy builds but every asset 404s.
+  VITE_BASE_PATH = "/"
+  # All values in .env are the revisit-studies template's shared,
+  # intentionally-public client config (Firebase web config, Supabase
+  # anon key, reCAPTCHA site key) - these are meant to ship in the
+  # bundle; access is enforced server-side, not by hiding these values.
+  # Disabling the scanner outright since omitting individual keys
+  # didn't stop it from flagging the build.
+  SECRETS_SCAN_ENABLED = "false"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

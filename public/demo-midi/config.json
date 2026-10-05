@@ -1,0 +1,121 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/StudyConfigSchema.json",
+  "studyMetadata": {
+    "title": "MIDI Piano Input with Provenance",
+    "version": "pilot",
+    "authors": [
+      "The reVISit Team"
+    ],
+    "date": "2026-10-05",
+    "description": "A melody-matching task driven by a MIDI piano, capturing note-level provenance with velocity and instrument-clock timing alongside a screen recording.",
+    "organizations": [
+      "University of Utah",
+      "WPI"
+    ]
+  },
+  "uiConfig": {
+    "contactEmail": "contact@revisit.dev",
+    "helpTextPath": "demo-midi/assets/introduction.md",
+    "logoPath": "revisitAssets/revisitLogoSquare.svg",
+    "withProgressBar": true,
+    "autoDownloadStudy": false,
+    "withSidebar": true,
+    "windowEventDebounceTime": 100,
+    "captureMidi": true,
+    "recordScreen": true,
+    "recordScreenFPS": 30
+  },
+  "importedLibraries": [
+    "midi",
+    "screen-recording"
+  ],
+  "baseComponents": {
+    "midiTrial": {
+      "type": "react-component",
+      "path": "demo-midi/assets/MidiMelodyTask.tsx",
+      "nextButtonLocation": "sidebar",
+      "captureMidi": true,
+      "recordScreen": true,
+      "instruction": "Play the highlighted note on your piano, matching the target dynamic. The melody advances when you play the right note.",
+      "response": [
+        {
+          "id": "notesHit",
+          "prompt": "Notes played correctly",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "misses",
+          "prompt": "Wrong notes",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "meanVelocityError",
+          "prompt": "Mean velocity error",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "meanOnsetIntervalMs",
+          "prompt": "Mean interval between notes (ms)",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "onsetJitterMs",
+          "prompt": "Interval jitter (ms)",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "meanNoteDurationMs",
+          "prompt": "Mean note duration (ms)",
+          "location": "sidebar",
+          "type": "reactive"
+        },
+        {
+          "id": "completed",
+          "prompt": "Completed the melody",
+          "location": "sidebar",
+          "type": "reactive"
+        }
+      ]
+    }
+  },
+  "components": {
+    "introduction": {
+      "type": "markdown",
+      "path": "demo-midi/assets/introduction.md",
+      "response": []
+    },
+    "midi-scale": {
+      "baseComponent": "midiTrial",
+      "description": "Five notes up a C major scale, all white keys, played at a medium dynamic.",
+      "parameters": {
+        "melody": [60, 62, 64, 65, 67],
+        "targetVelocity": 70,
+        "velocityTolerance": 30
+      }
+    },
+    "midi-chromatic": {
+      "baseComponent": "midiTrial",
+      "description": "A chromatic figure that mixes black and white keys, played loudly. Adjacent semitones are a tritone apart in hue, so the provenance timeline stays readable.",
+      "parameters": {
+        "melody": [60, 61, 63, 66, 68, 71],
+        "targetVelocity": 105,
+        "velocityTolerance": 20
+      }
+    }
+  },
+  "sequence": {
+    "order": "fixed",
+    "components": [
+      "introduction",
+      "$midi.components.midiConnection",
+      "$screen-recording.components.screenRecordingPermission",
+      "midi-scale",
+      "midi-chromatic"
+    ]
+  }
+}

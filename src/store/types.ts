@@ -43,7 +43,16 @@ type MouseMoveEvent = [number, 'mousemove', number[]];
 type ResizeEvent = [number, 'resize', number[]];
 type ScrollEvent = [number, 'scroll', number[]];
 type VisibilityEvent = [number, 'visibility', string];
-export type EventType = MouseMoveEvent | MouseDownEvent | MouseUpEvent | KeydownEvent | KeyupEvent | ScrollEvent | FocusEvent | InputEvent | ResizeEvent | VisibilityEvent;
+// MIDI input arrives as real events carrying their own timestamps from the MIDI
+// stack, so unlike polled input these marks are not quantised to a frame.
+// Note events carry [note, velocity]; note is 0-127 with 60 as C4, and velocity
+// is 0-127 (0 on a note-off means the keyboard reported no release velocity).
+type MidiNoteOnEvent = [number, 'midinoteon', number[]];
+type MidiNoteOffEvent = [number, 'midinoteoff', number[]];
+// [controller, value], both 0-127. Controller 64 is the sustain pedal.
+type MidiControlChangeEvent = [number, 'midicc', number[]];
+type MidiDeviceEvent = [number, 'mididevice', string];
+export type EventType = MouseMoveEvent | MouseDownEvent | MouseUpEvent | KeydownEvent | KeyupEvent | ScrollEvent | FocusEvent | InputEvent | ResizeEvent | VisibilityEvent | MidiNoteOnEvent | MidiNoteOffEvent | MidiControlChangeEvent | MidiDeviceEvent;
 
 export type ValidationStatus = {
   valid: boolean;
@@ -97,7 +106,7 @@ export interface StoredAnswer {
   /** Time that the user ended interaction with the component in epoch milliseconds. */
   endTime: number;
   /**
-   * A list containing the time (in epoch milliseconds), the action (focus, input, keypress, mousedown, mouseup, mousemove, resize, scroll or visibility), and then either a coordinate pertaining to where the event took place on the screen or string related to such event. Below is an example of the windowEvents list.
+   * A list containing the time (in epoch milliseconds), the action (focus, input, keypress, mousedown, mouseup, mousemove, resize, scroll, visibility, midinoteon, midinoteoff, midicc or mididevice), and then either a coordinate pertaining to where the event took place on the screen or string related to such event. Below is an example of the windowEvents list.
    *
    * ```json
    * "windowEvents": [

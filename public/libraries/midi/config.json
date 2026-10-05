@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/revisit-studies/study/v2.4.4/src/parser/LibraryConfigSchema.json",
+  "description": "This is a required library for studies that take input from a MIDI instrument. It provides a setup component that requests Web MIDI access, lists the connected instruments, and asks the participant to play one note to confirm the instrument works before the study relies on it.",
+  "additionalDescription": "**Web MIDI is available in Chrome and Edge only.** Safari does not implement it on any platform or version, and Firefox requires participants to install a Site Permission Add-On first. The `midiConnection` component detects an unsupported browser and tells the participant what to do instead of failing silently, but a study that needs a MIDI instrument should say so in its introduction and screening.\n\nCapture itself is separate from this component: set `captureMidi` in `uiConfig`, or on the individual components that should record, to write `midinoteon`, `midinoteoff`, `midicc` and `mididevice` entries into `windowEvents`.",
+  "components": {
+    "midiConnection": {
+      "description": "Request MIDI access and confirm the participant's instrument works",
+      "type": "react-component",
+      "path": "libraries/midi/assets/MidiConnection.tsx",
+      "nextButtonLocation": "belowStimulus",
+      "nextButtonText": "Continue",
+      "response": [
+        {
+          "hidden": true,
+          "type": "reactive",
+          "id": "midiConnection",
+          "prompt": "MIDI instrument connected"
+        }
+      ]
+    }
+  },
+  "sequences": {}
+}

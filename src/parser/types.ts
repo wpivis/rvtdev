@@ -301,6 +301,8 @@ export interface UIConfig {
   recordScreen?: boolean;
   /** Desired fps for recording screen. If possible, this value will be used, but if it's not possible, the user agent will use the closest possible match. */
   recordScreenFPS?: number;
+  /** Whether or not to capture MIDI input. If true, note-on, note-off, control-change and device-connection messages from every connected MIDI input are recorded into `windowEvents` on all components, unless deactivated on individual components. Defaults to false, so studies that do not use a MIDI instrument never subscribe to one. Web MIDI is available in Chrome and Edge only. It's also recommended that the library component, $midi.components.midiConnection, be included in the study before any component that captures MIDI, so that access is granted and the participant has confirmed their instrument works. */
+  captureMidi?: boolean;
   /** Whether to prepend questions with their index (+ 1). This should only be used when all questions are in the same location, e.g. all are in the side bar. */
   enumerateQuestions?: boolean;
   /** Whether to show the response dividers. Defaults to false. */
@@ -1080,6 +1082,8 @@ export interface BaseIndividualComponent {
   clickToRecord?: boolean;
   /** Whether or not we want to utilize screen recording feature. If present, will override the record screen setting in the uiConfig. If true, the uiConfig must have recordScreen set to true or the screen will not be captured. It's also required that the library component, $screen-recording.components.screenRecordingPermission, be included in the study at some point before this component to ensure permissions are granted and screen capture has started. */
   recordScreen?: boolean;
+  /** Whether or not to capture MIDI input on this component. If present, will override the capture MIDI setting in the uiConfig. */
+  captureMidi?: boolean;
   /** Whether to prepend questions with their index (+ 1). This should only be used when all questions are in the same location, e.g. all are in the side bar. If present, will override the enumeration of questions setting in the uiConfig. */
   enumerateQuestions?: boolean;
   /** Whether to show the response dividers. If present, will override the response dividers setting in the uiConfig. */

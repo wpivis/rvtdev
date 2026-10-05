@@ -6,9 +6,11 @@ import {
   ROOT_KEY,
   buildProvenanceLegendEntries,
   getColorForKey,
+  getNodeColor,
   getNodeColorKey,
   normalizeActionName,
 } from '../provenanceColors';
+import { PITCH_CLASS_COLORS, PITCH_CLASS_SLUGS, midiNoteActionType } from '../../../utils/midiNotes';
 
 function createGraph(nodes: TrrackedProvenance['nodes'], root: string): TrrackedProvenance {
   return {
@@ -148,5 +150,73 @@ describe('provenanceColors', () => {
     const legendEntries = buildProvenanceLegendEntries([graphA, graphB]);
     expect(legendEntries.size).toBe(2);
     expect(legendEntries.get('signal setzoom')?.color).toBe(getColorForKey('signal setzoom'));
+  });
+});
+
+describe('MIDI provenance colors', () => {
+  function noteNode(actionType: string): TrrackedProvenance['nodes'][string] {
+    return {
+      id: 'n1',
+      label: 'Played something',
+      createdOn: 1,
+      artifacts: [],
+      meta: { annotation: [], bookmark: [] },
+      children: [],
+      state: { type: 'checkpoint', val: {} },
+      level: 1,
+      event: 'midi',
+      parent: 'root',
+      sideEffects: { do: [{ type: actionType }], undo: [] },
+    } as TrrackedProvenance['nodes'][string];
+  }
+
+  test('a note is colored by its pitch class, not a hashed color', () => {
+    PITCH_CLASS_SLUGS.forEach((slug) => {
+      const node = noteNode(`midi-note-${slug}`);
+      expect(getNodeColor(node)).toBe(PITCH_CLASS_COLORS[slug]);
+    });
+  });
+
+  test('midiNoteActionType produces the key the color map is built on', () => {
+    // 60 is C4, 61 is C#4. Both resolve through the shared helper, so the
+    // stimulus and the timeline cannot drift apart.
+    expect(getNodeColor(noteNode(midiNoteActionType(60)))).toBe(PITCH_CLASS_COLORS.c);
+    expect(getNodeColor(noteNode(midiNoteActionType(61)))).toBe(PITCH_CLASS_COLORS['c-sharp']);
+  });
+
+  test('all twelve pitch classes get a distinct color', () => {
+    const colors = PITCH_CLASS_SLUGS.map((slug) => PITCH_CLASS_COLORS[slug]);
+    expect(new Set(colors).size).toBe(PITCH_CLASS_SLUGS.length);
+  });
+
+  test('the same pitch class is one color across every octave', () => {
+    // This is what makes the timeline read as a piano roll rather than as a
+    // sequence of unrelated events.
+    [36, 48, 60, 72, 84].forEach((note) => {
+      expect(getNodeColor(noteNode(midiNoteActionType(note)))).toBe(PITCH_CLASS_COLORS.c);
+    });
+  });
+
+  test('the override survives the action-name normalization used for lookup', () => {
+    expect(getColorForKey(normalizeActionName('MIDI-Note-C-Sharp'))).toBe(PITCH_CLASS_COLORS['c-sharp']);
+  });
+
+  test('other MIDI actions still fall back to a hashed color', () => {
+    const node = noteNode('midi-prompt-note');
+    const color = getNodeColor(node);
+    expect(color).toMatch(/^hsl\(/);
+    expect(Object.values(PITCH_CLASS_COLORS)).not.toContain(color);
+  });
+
+  test('the legend reports note colors alongside their labels', () => {
+    const graph = createGraph({
+      root: {
+        id: 'root', label: 'Root', createdOn: 0, artifacts: [], meta: { annotation: [], bookmark: [] }, children: [], state: { type: 'checkpoint', val: {} }, level: 0, event: 'Root',
+      } as TrrackedProvenance['nodes'][string],
+      n1: noteNode(midiNoteActionType(67)),
+    }, 'root');
+
+    const legendEntries = buildProvenanceLegendEntries([graph]);
+    expect(legendEntries.get('midi note g')?.color).toBe(PITCH_CLASS_COLORS.g);
   });
 });
